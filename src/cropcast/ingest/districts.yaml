@@ -1,0 +1,17 @@
+# Kerala's 14 districts -> representative point for Open-Meteo weather.
+# Coordinates are the district headquarters towns (a close, reproducible proxy for the
+# geographic centroid; Idukki uses Painavu, Wayanad uses Kalpetta).
+Thiruvananthapuram: {lat: 8.5241, lon: 76.9366}
+Kollam: {lat: 8.8932, lon: 76.6141}
+Pathanamthitta: {lat: 9.2648, lon: 76.7870}
+Alappuzha: {lat: 9.4981, lon: 76.3388}
+Kottayam: {lat: 9.5916, lon: 76.5222}
+Idukki: {lat: 9.8494, lon: 76.9410}
+Ernakulam: {lat: 9.9816, lon: 76.2999}
+Thrissur: {lat: 10.5276, lon: 76.2144}
+Palakkad: {lat: 10.7867, lon: 76.6548}
+Malappuram: {lat: 11.0510, lon: 76.0711}
+Kozhikode: {lat: 11.2588, lon: 75.7804}
+Wayanad: {lat: 11.6085, lon: 76.0830}
+Kannur: {lat: 11.8745, lon: 75.3704}
+Kasaragod: {lat: 12.4996, lon: 74.9869}

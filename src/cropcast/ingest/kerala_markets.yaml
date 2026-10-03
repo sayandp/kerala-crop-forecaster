@@ -1,0 +1,317 @@
+# Kerala market -> district (raw Agmarknet names), generated from the Agmarknet 2.0
+# masters endpoint https://api.agmarknet.gov.in/v1/daily-price-arrival/filters (state_id=17)
+# on 2026-10-04. The daily state report has no district column, so we join on this.
+# District names are canonicalised by ingest/mappings.py.
+ARWM Muvattupuzha: Ernakulam
+Adimali Market: Idukki
+Adimali VFPCK Market: Idukki
+Adithyapuram VFPCK Market: Kottayam
+Agali VFPCK Market: Palakad
+Alacode VFPCK Market: Idukki
+Alappuzha Market: Alappuzha
+Alathur Market: Palakad
+Alenellur VFPCK Market: Palakad
+Alengad VFPCK Market: Thirssur
+Aluva Market: Ernakulam
+Amalapuram VFPCK Market: Ernakulam
+Amballur VFPCK Market: Thirssur
+Anchal Market: Kollam
+Anchal VFPCK Market: Kollam
+Angadippuram VFPCK Market: Malappuram
+Angamaly Market: Ernakulam
+Annamanada VFPCK Market: Thirssur
+Anyara(EEC) Market: Thiruvananthapuram
+Aralamoodu Market: Thiruvananthapuram
+Aroor Market: Alappuzha
+Aryanad VFPCK Market: Thiruvananthapuram
+Athanikkal VFPCK Market: Malappuram
+Athirampuzha Market: Kottayam
+Athirampuzha VFPCK Market: Kottayam
+Athiyannur VFPCK Market: Thiruvananthapuram
+Attingal Market: Thiruvananthapuram
+Avarma VFPCK Market: Kottayam
+Aymanam VFPCK Market: Kottayam
+Balaramapuram VFPCK Market: Thiruvananthapuram
+Balarampuram Market: Thiruvananthapuram
+Bharananganam VFPCK: Kottayam
+Broadway market Market: Ernakulam
+Chala Market: Thiruvananthapuram
+Chalakudy Market: Thirssur
+Channapetta VFPCK Market: Kollam
+Chanthroor Market: Alappuzha
+Chathannoore VFPCK Market: Kollam
+Chathanoor Market: Kollam
+Chavakkad Market: Thirssur
+Chavassery VFPCK Market: Kannur
+Chazhur VFPCK Market: Thirssur
+Cheeral VFPCK Market: Wayanad
+Chelakkara Market: Thirssur
+Chelakkara VFPCK Market: Thirssur
+Chengamanad VFPCK Market: Kollam
+Chengannur Market: Alappuzha
+Chenkal VFPCK Market: Thiruvananthapuram
+Chennithala VFPCK Market: Alappuzha
+Cheriyanadu VFPCK Market: Alappuzha
+Cherthala Market: Alappuzha
+Chittar VFPCK Market: Pathanamthitta
+Chungathara VFPCK Market: Malappuram
+Edackattuvayal VFPCK Market: Ernakulam
+Edamon VFPCK Market: Kollam
+Edathwa VFPCK Market: Alappuzha
+Elamad VFPCK Market: Kollam
+Elamkulam VFPCK Market: Malappuram
+Elamkur VFPCK Market: Malappuram
+Elanad VFPCK Market: Thirssur
+Elevancheri VFPCK Market: Palakad
+Enadimangalam VFPCK Market: Pathanamthitta
+Erath VFPCK Market: Pathanamthitta
+Ernakulam Market: Ernakulam
+Errattayar VFPCK Market: Idukki
+Ettumanoor Market: Kottayam
+Ettumanoor VFPCK Market: Kottayam
+Ezhamkulam Market: Pathanamthitta
+Ezhamkulam VFPCK Market: Pathanamthitta
+Harippad Market: Alappuzha
+Inchakkad VFPCK Market: Kollam
+Irikkur Market: Kannur
+Irinjalakkuda Market: Thirssur
+Irityy Market: Kannur
+Kadakkal VFPCK Market: Kollam
+Kadambazhi puram VFPCK Market: Palakad
+Kadukutty VFPCK Market: Thirssur
+Kadungallur VFPCK Market: Ernakulam
+Kaithepalam VFPCK Market: Kottayam
+Kakkur VFPCK Market: Kozhikode(Calicut)
+Kalanjoor VFPCK Market: Pathanamthitta
+Kalikavu VFPCK Market: Malappuram
+Kallachi Market: Kozhikode(Calicut)
+Kallara VFPCK Market: Thiruvananthapuram
+Kalluvathukkal VFPCK Market: Kollam
+Kalpetta Market: Wayanad
+Kamakshi VFPCK Market: Idukki
+Kanjangadu Market: Kasargod
+Kanjirappally Market: Kottayam
+Kanjoor VFPCK Market: Ernakulam
+Kannakunnu VFPCK Market: Idukki
+Kannamangalam VFPCK Market: Malappuram
+Kannur Market: Kannur
+Kanthaloor VFPCK Market: Idukki
+Karalam VFPCK Market: Thirssur
+Karimpuzha VFPCK Market: Palakad
+Karumaloor VFPCK Market: Ernakulam
+Karuvannur VFPCK Market: Thirssur
+Kasargod Market: Kasargod
+Kattakada Market: Thiruvananthapuram
+Kattakkada VFPCK Market: Thiruvananthapuram
+Kattampak VFPCK Market: Kottayam
+Kattappana Market: Idukki
+Kayamkulam Market: Alappuzha
+Keerampara VFPCK Market: Ernakulam
+Keezhparamba VFPCK Market: Kozhikode(Calicut)
+Kelakam VFPCK Market: Kannur
+Keralapuram VFPCK Market: Kollam
+Kilmannur VFPCK Market: Thiruvananthapuram
+Kizhakkancheri VFPCK Market: Palakad
+Kodakkad VFPCK Market: Malappuram
+Kodassery VFPCK Market: Thirssur
+Kodenchery VFPCK Market: Kozhikode(Calicut)
+Kodikulam VFPCK Market: Idukki
+Kodiyathur VFPCK Market: Kozhikode(Calicut)
+Kodumon VFPCK Market: Pathanamthitta
+Kodungalloor Market: Thirssur
+Koduvayoor Market: Palakad
+Kolayad VFPCK Market: Kannur
+Kollam Market: Kollam
+Kollayil VFPCK Market: Thiruvananthapuram
+Kollengode Market: Palakad
+Kollengode VFPCK Market: Palakad
+Kondotty Market: Malappuram
+Koodali VFPCK Market: Kannur
+Koodaranji VFPCK Market: Kozhikode(Calicut)
+Koorad Wandoor VFPCK Market: Malappuram
+Koovapadi VFPCK Market: Ernakulam
+Kothamangalam Market: Ernakulam
+Kottakkal Market: Malappuram
+Kottarakkara Market: Kollam
+Kottayam Market: Kottayam
+Kottayi VFPCK Market: Palakad
+Kovilnada VFPCK Market: Thiruvananthapuram
+Ks Mangalam VFPCK Market: Kottayam
+Kulathoopuzha VFPCK Market: Kollam
+Kunnamangalam VFPCK Market: Kozhikode(Calicut)
+Kunnathukkal VFPCK Market: Thiruvananthapuram
+Kunnukara VFPCK Market: Ernakulam
+Kurichy VFPCK Market: Kottayam
+Kuriem VFPCK Market: Kottayam
+Kurumassery VFPCK Market: Ernakulam
+Kuruppanthura Market: Kottayam
+Kuthuparambu Market: Kannur
+Kuttoor Market: Pathanamthitta
+Kuzhur VFPCK Market: Thirssur
+Madhavapuram Market: Alappuzha
+Madikai VFPCK Market: Kasargod
+Mala VFPCK Market: Thirssur
+Malampuzha VFPCK Market: Palakad
+Malayattoor VFPCK Market: Ernakulam
+Mallappally VFPCK Market: Pathanamthitta
+Maloor VFPCK Market: Kannur
+Mananthavady Market: Wayanad
+Mangattidom VFPCK Market: Kannur
+Manjeri Market: Malappuram
+Manjeswaram Market: Kasargod
+Mankada VFPCK Market: Malappuram
+Mannackanad VFPCK Market: Kottayam
+Mannar Market: Alappuzha
+Maradu Market: Ernakulam
+Maranelloor VFPCK Market: Thiruvananthapuram
+Marottichal VFPCK Market: Thirssur
+Mattannur VFPCK Market: Kannur
+Mattathur VFPCK Market: Thirssur
+Mavoor VFPCK Market: Kozhikode(Calicut)
+Mazhuvannur VFPCK Market: Ernakulam
+Melechinnar VFPCK Market: Idukki
+Melocr VFPCK Market: Thirssur
+Mezhuveli VFPCK Market: Pathanamthitta
+Moochamkundu VFPCK Market: Palakad
+Mookkannur VFPCK Market: Ernakulam
+Moothedam VFPCK Market: Malappuram
+Mudakkal VFPCK Market: Thiruvananthapuram
+Mukkam VFPCK Market: Kozhikode(Calicut)
+Mukkom Market: Kozhikode(Calicut)
+Munnar Market: Idukki
+Muriyad VFPCK Market: Thirssur
+Mutholy VFPCK Market: Kottayam
+Muttil VFPCK Market: Wayanad
+Mylachal VFPCK Market: Thiruvananthapuram
+Naranganam VFPCK Market: Pathanamthitta
+Nedumangadu Market: Thiruvananthapuram
+Nedumbram VFPCK Market: Pathanamthitta
+Nedumkandam Market: Idukki
+Nedumpaikulam VFPCK Market: Kollam
+Nedumpana VFPCK Market: Kollam
+Nedungapra VFPCK Market: Ernakulam
+Neduvathoor VFPCK Market: Kollam
+Neeleswaram Market: Kasargod
+Neervaram VFPCK Market: Wayanad
+Neezhoor VFPCK Market: Kottayam
+Neyyatinkara Market: Thiruvananthapuram
+Neyyattinkara VFPCK Market: Thiruvananthapuram
+Nooluvally VFPCK Market: Thirssur
+Nooranad VFPCK Market: Alappuzha
+North Paravur Market: Ernakulam
+Omalloor Market: Pathanamthitta
+Othayi VFPCK Market: Malappuram
+Padinjarathara VFPCK Market: Wayanad
+Pala Market: Kottayam
+Palakkad Market: Palakad
+Palayam Market: Kozhikode(Calicut)
+Palayamangalam Market: Palakad
+Paliyamangalam VFPCK Market: Palakad
+Pallikkal VFPCK Market: Malappuram
+Pampady Market: Kottayam
+Pananchery VFPCK Market: Thirssur
+Pandalam Market: Pathanamthitta
+Pandalam Thekkekkara VFPCK Market: Pathanamthitta
+Pandalam VFPCK Market: Pathanamthitta
+Pandanadu VFPCK Market: Alappuzha
+Pappanchani VFPCK Market: Thiruvananthapuram
+Parakkodu Market: Pathanamthitta
+Parappanangadi Market: Malappuram
+Parappanangadi VFPCK Market: Malappuram
+Parassala Market: Thiruvananthapuram
+Parassala VFPCK Market: Thiruvananthapuram
+Parathode VFPCK Market: Idukki
+Pariyaram VFPCK Market: Thirssur
+Pattambi Market: Palakad
+Pattazhy North VFPCK Market: Kollam
+Pattiyam VFPCK Market: Kannur
+Payam VFPCK Market: Kannur
+Payyannur Market: Kannur
+Pazhayannur VFPCK Market: Thirssur
+Pazhayarikandam VFPCK Market: Idukki
+Perambra Market: Kozhikode(Calicut)
+Peravoor VFPCK Market: Kannur
+Peria VFPCK Market: Wayanad
+Perinthalmanna Market: Malappuram
+Perumatty VFPCK Market: Palakad
+Perumbavoor Market: Ernakulam
+Piravam Market: Ernakulam
+Piravanthoor VFPCK Market: Kollam
+Plappally VFPCK Market: Kollam
+Poothadi VFPCK Market: Wayanad
+Pothanikkadu VFPCK Market: Ernakulam
+Pothencode Market: Thiruvananthapuram
+Pramadom VFPCK Market: Pathanamthitta
+Pullur Periya VFPCK Market: Kasargod
+Pulpally Market: Wayanad
+Punalur Market: Kollam
+Punalur VFPCK Market: Kollam
+Puramattom VFPCK Market: Pathanamthitta
+Puthenvelikkara VFPCK Market: Ernakulam
+Puthupariyaram VFPCK Market: Palakad
+Puthur VFPCK Market: Kollam
+Quilandy Market: Kozhikode(Calicut)
+Rajakkad VFPCK Market: Idukki
+Ramapuram VFPCK Market: Kottayam
+Ranni VFPCK Market: Pathanamthitta
+Ranniangadi Market: Pathanamthitta
+Sasthamkotta Market: Kollam
+Sasthamkotta VFPCK Market: Kollam
+Seethathode VFPCK Market: Pathanamthitta
+Sooranad VFPCK Market: Kollam
+Sreekandapuram VFPCK Market: Kannur
+Sultan bathery Market: Wayanad
+Sulthanbathery VFPCK Market: Wayanad
+Taliparamba Market: Kannur
+Thalakulathur VFPCK Market: Kozhikode(Calicut)
+Thalappara VFPCK Market: Malappuram
+Thalasserry Market: Kannur
+Thalavoor VFPCK Market: Kollam
+Thalayolaparambu Market: Kottayam
+Thamarakkulam VFPCK Market: Alappuzha
+Thamarassery Market: Kozhikode(Calicut)
+Thariyode VFPCK Market: Wayanad
+Thavinjal VFPCK Market: Wayanad
+Thazhakkara VFPCK Market: Alappuzha
+Thengamam VFPCK Market: Pathanamthitta
+Thirurrangadi Market: Malappuram
+Thiruvali VFPCK Market: Malappuram
+Thiruvambady VFPCK Market: Kozhikode(Calicut)
+Thiruvananthapuram Market: Thiruvananthapuram
+Thiruvaniyoor VFPCK Market: Ernakulam
+Thodupuzha Market: Idukki
+Thompramkudi VFPCK Market: Idukki
+Thondernad VFPCK Market: Wayanad
+Thottippal VFPCK Market: Thirssur
+Thottuva VFPCK Market: Kottayam
+Thrikkodithanam VFPCK Market: Kottayam
+Thrippunithura Market: Ernakulam
+Thrissur Market: Thirssur
+Thuravoor VFPCK Market: Ernakulam
+Udumbannoor VFPCK Market: Idukki
+Vadakarapathy VFPCK Market: Palakad
+Vadakkenchery Market: Palakad
+Vakathanam VFPCK Market: Kottayam
+Valakom VFPCK Market: Kollam
+Vallikunnam VFPCK Market: Alappuzha
+Vamanapuram Market: Thiruvananthapuram
+Vandiperiyar Market: Idukki
+Vaniyamkulam VFPCK Market: Palakad
+Varandarappilly VFPCK Market: Thirssur
+Vayala VFPCK Market: Kottayam
+Vazhayur VFPCK Market: Malappuram
+Veliyam VFPCK Market: Kollam
+Vellanad VFPCK Market: Thiruvananthapuram
+Vellannur VFPCK Market: Kozhikode(Calicut)
+Vellarada VFPCK Market: Thiruvananthapuram
+Veloorkkara VFPCK Market: Thirssur
+Vembayam VFPCK Market: Thiruvananthapuram
+Vempally VFPCK Market: Kottayam
+Vengannore VFPCK Market: Thiruvananthapuram
+Vengapally VFPCK Market: Wayanad
+Vengeri(Kozhikode) Market: Kozhikode(Calicut)
+Vengola VFPCK Market: Ernakulam
+Venmony VFPCK Market: Alappuzha
+Vithinasserri VFPCK Market: Palakad
+Wadakkanchery Market: Thirssur
+vadakarapathy Market: Palakad
