@@ -158,7 +158,7 @@ fig.tight_layout()
 
 md("## 3. Price history — best series per crop")
 code("""
-pick = (cov[cov.n_days > 200].sort_values(["commodity", "usable", "pct_missing"],
+pick = (cov[(cov.n_days > 200) & (cov.days_since_last <= 400)].sort_values(["commodity", "usable", "pct_missing"],
                                          ascending=[True, False, True])
            .groupby("commodity").head(3))
 fig, axes = plt.subplots(5, 1, figsize=(11, 13), sharex=True)
@@ -253,29 +253,31 @@ pd.DataFrame({crop: {f"{n} peak (-14..0)": event_study(crop, d).loc[-14:0].max()
               for crop in CROP_COLORS}).round(1)
 """)
 
-md("## 5. Outliers")
-code("""
-# Robust z-score of log price vs a centred 15-observation rolling median, per series.
-def flag_outliers(s):
-    lp = np.log(s)
-    med = lp.rolling(15, center=True, min_periods=5).median()
-    resid = lp - med
-    mad = resid.abs().rolling(61, center=True, min_periods=15).median() * 1.4826
-    return resid / mad.replace(0, np.nan)
+md("""
+## 5. Outliers
 
+Rule: a price more than 50 % above or below its series' centred 15-observation rolling
+median (|log ratio| > log 1.5). A MAD-based z-score was tried first but explodes on the
+many series whose price is flat for weeks (MAD ≈ 0), so it is not used.
+""")
+code("""
 parts = []
 for (c, m, v), s in df.sort_values("date").groupby(["commodity", "market", "variety"]):
     if len(s) < 60:
         continue
-    z = flag_outliers(s.set_index("date")["modal_price"])
-    parts.append(pd.DataFrame({"commodity": c, "market": m, "variety": v, "date": z.index,
-                               "modal_price": s.modal_price.values, "z": z.values}))
+    lp = np.log(s["modal_price"].to_numpy())
+    med = pd.Series(lp).rolling(15, center=True, min_periods=5).median().to_numpy()
+    parts.append(pd.DataFrame({"commodity": c, "market": m, "variety": v,
+                               "date": s["date"].to_numpy(),
+                               "modal_price": s["modal_price"].to_numpy(),
+                               "ratio_to_median": np.exp(lp - med)}))
 zz = pd.concat(parts, ignore_index=True)
-out = zz[zz.z.abs() > 6]
-print(f"{len(out)} observations with |robust z| > 6 "
-      f"({len(out) / len(zz):.2%} of rows in series with ≥ 60 obs)")
-print(out.groupby("commodity").size().to_dict())
-out.sort_values("z", key=abs, ascending=False).head(15).round(1)
+out = zz[np.abs(np.log(zz.ratio_to_median)) > np.log(1.5)]
+print(f"{len(out):,} outliers ({len(out) / len(zz):.2%} of rows in series with ≥ 60 obs)")
+display(out.groupby("commodity").size().rename("outliers").to_frame()
+          .join(zz.groupby("commodity").size().rename("rows"))
+          .assign(pct=lambda d: (d.outliers / d.rows * 100).round(2)))
+out.assign(dev=np.abs(np.log(out.ratio_to_median))).sort_values("dev", ascending=False)    .drop(columns="dev").head(15).round({"ratio_to_median": 2})
 """)
 
 code("""
@@ -314,7 +316,89 @@ d = df.assign(spread=(df.max_price - df.min_price) / df.modal_price * 100)
 d.groupby("commodity")["spread"].describe(percentiles=[0.5, 0.9, 0.99]).round(1)
 """)
 
-md("## 7. Recommended series & issues\n\n_(filled in after executing — see next cell)_")
+md("""
+## 7. Series that ended around the Agmarknet 2.0 cut-over
+
+Agmarknet 2.0's combined price+arrival data starts 2025-11-07. Markets keep reporting
+overall (≈ 250–275 markets/week either side), but some long crop × market series stop
+right there — a live model must not depend on them.
+""")
+code("""
+long = cov[cov.n_days >= 500]
+ended = long[(long["last"] >= "2025-10-25") & (long["last"] <= "2025-11-20")]
+print(f"{len(ended)} of {len(long)} series with ≥ 500 obs ended 2025-10-25…2025-11-20")
+show(ended.sort_values("n_days", ascending=False)).head(15)
+""")
+
+md("## 8. Recommended modelling set (rule-based, reproducible)")
+code("""
+RULES = {  # crop -> (variety filter or None, max series)
+    "banana": ("Nendran", 8), "coconut": (None, 3), "pepper": (None, 3),
+    "tapioca": (None, 4), "rubber": (None, 2),
+}
+rec = []
+for crop, (variety, k) in RULES.items():
+    c = cov[cov.commodity == crop]
+    if variety:
+        c = c[c.variety == variety]
+    usable = c[c.usable].sort_values("pct_missing").head(k).assign(tier="usable")
+    if len(usable) == 0:  # no series passes: take the best alive near-misses (≤ 30 % missing)
+        usable = (c[(c.span_years >= 2) & (c.days_since_last <= 30) & (c.pct_missing <= 30)]
+                  .sort_values("pct_missing").head(k).assign(tier="provisional"))
+    rec.append(usable)
+rec = pd.concat(rec)
+show(rec[["commodity", "market", "variety", "district" if "district" in rec else "market",
+          "n_days", "first", "last", "span_years", "pct_missing", "median_price", "tier",
+          "expected"]].loc[:, lambda d: ~d.columns.duplicated()])
+""")
+
+
+md("""
+## 9. Conclusions — recommended series and data issues
+
+*Numbers below are from the run on 2026-10-04 (prices_raw: 743,947 rows, 2018-01-01 → 2026-10-03,
+303 markets; 35,576 rows quarantined = 4.6 %).*
+
+### Recommended modelling set (19 series; output of section 8)
+
+| crop | series (market · variety) | notes |
+|---|---|---|
+| **banana** (Nendran) | Kayamkulam · Nendran (8.8 y), Chenkal VFPCK, Mookkannur VFPCK, Parassala, Thiruvaniyoor VFPCK, Elamad VFPCK, Kunnukara VFPCK, Vengannore VFPCK | Only Kayamkulam has 8+ years; the VFPCK series start 2024-03/04 (≈ 2.5 y). 71 banana series pass the rule — plenty of room to add more. |
+| **coconut** | Koduvayoor · Big, Palakkad · Coconut, North Paravur · Big | Usable history starts 2021-12 at best. |
+| **pepper** | Kannur · Other (8.8 y, 1 % missing), Manjeswaram · Garbled Other, North Paravur · Garbled | North Paravur is ~1.7× the others' price level (garbled premium) and step-like; keep it as its own series. |
+| **tapioca** | Manjeswaram · Other, Payyannur · Other, Perumbavoor · Tapioca, North Paravur · Other | Manjeswaram is very noisy since 2024 (daily swings ±40 %). |
+| **rubber** | *provisional:* Pulpally · Other (25.7 % missing) | **No rubber series passes the rule.** No Kottayam (benchmark) series exists in Agmarknet at all. Kalpetta (12.7 % missing) was relabelled Other → RSS-4 at the Agmarknet 2.0 cut-over; stitched, it would qualify. Rubber Board data is the real fix. |
+
+### Seasonality & festivals (relative to each series' own yearly mean)
+* **banana:** strong — +14 % in August, −7 % in March; Onam event study shows ≈ +13 % over the
+  two weeks before Thiruvonam, unwinding within ~2 weeks after. Vishu ≈ +5–9 %.
+* **coconut:** annual cycle, trough May–Jun (−7 %), peak Nov–Dec (+10–15 %). The post-Onam rise
+  is this seasonal climb, not an Onam effect.
+* **pepper / rubber:** weak seasonality; mostly trend (pepper 30k → 68k Rs./q since 2020; rubber
+  ~13k → 25k). Rubber Jan −8 %, Aug +6 %.
+* **tapioca:** mild (Sep–Oct +5 %); Vishu +9 %.
+* **Day of week:** no meaningful price effect; Sunday has ~40 % of a weekday's observations.
+
+### Data issues found
+1. **Grade-level duplicates** — 32,502 rows (4.2 % of all rows), almost all banana, 55 % from VFPCK markets:
+   same market/variety/day reported twice with different prices (e.g. 1,400 vs 2,400). The
+   report API has no grade column; the contract keeps the first row. → Phase 2: decide on a
+   deterministic rule (e.g. arrivals-weighted mean) or use the grade-aware report.
+2. **Modal-only reports** — 2,613 rows with min = max = 0 (99 % VFPCK) are quarantined by
+   `min ≤ modal ≤ max`. Making min/max nullable would recover them (schema change — needs sign-off).
+3. **Price-scale errors pass the contract** — e.g. banana at Rs. 2–3/q (Perinthalmanna 2018-03),
+   Rs. 0.3/q, a Venmony VFPCK Nendran series around Rs. 65/q (per-kg entered as per-quintal),
+   rubber spikes to 48k vs 15k. 0.88 % of rows are > 50 % from their local median.
+   → Phase 2: add per-crop plausibility bands to the contract.
+4. **Agmarknet 2.0 cut-over (≈ 2025-11-07)** — 58 of 450 long series end there; 22 continue under
+   a new variety label (green banana Other → Green, rubber Other → RSS-4), 28 genuinely stop.
+   → Phase 2: a variety-alias table applied *before* series selection.
+5. **Missing-days metric is optimistic for VFPCK markets**, which trade on Sundays (Mon–Sat
+   expectation, clipped at 0 %).
+6. **Rubber / pepper coverage** — 18 rubber and 37 pepper markets in total, none in Kottayam;
+   Rubber Board and Spices Board feeds would add the benchmark series (no stable public API found).
+7. **History** — Agmarknet 2.0 serves prices from 2018-01; data before 2018 was not attempted.
+""")
 
 nb = nbf.v4.new_notebook()
 nb["cells"] = cells
