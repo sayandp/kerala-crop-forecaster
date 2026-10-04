@@ -1,0 +1,75 @@
+name: daily-pipeline
+
+on:
+  schedule:
+    - cron: "0 14 * * *"  # 14:00 UTC = 19:30 IST
+  workflow_dispatch:
+    inputs:
+      date:
+        description: "Run date (YYYY-MM-DD, IST). Empty = today."
+        required: false
+        default: ""
+      steps:
+        description: "Comma-separated steps"
+        required: false
+        default: "ingest,validate,weather"
+
+concurrency:
+  group: daily-pipeline
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      ENV: prod
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      DATAGOV_API_KEY: ${{ secrets.DATAGOV_API_KEY }}
+      TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+      TELEGRAM_ADMIN_CHAT_ID: ${{ secrets.TELEGRAM_ADMIN_CHAT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v6
+        with:
+          python-version: "3.11"
+          enable-cache: true
+
+      - name: Install
+        run: uv sync --frozen --no-dev
+
+      - name: Run pipeline
+        env:
+          RUN_DATE: ${{ inputs.date }}
+          RUN_STEPS: ${{ inputs.steps || 'ingest,validate,weather' }}
+        run: |
+          args=(--steps "$RUN_STEPS")
+          if [ -n "$RUN_DATE" ]; then args+=(--date "$RUN_DATE"); fi
+          uv run python -m cropcast.pipeline "${args[@]}"
+
+      - name: Upload logs and raw snapshot
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pipeline-${{ github.run_id }}
+          path: |
+            logs/
+            data/raw/prices/
+            reports/
+          if-no-files-found: ignore
+          retention-days: 30
+
+      - name: Notify admin if the job itself broke
+        if: failure()
+        env:
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          if [ -n "$TELEGRAM_BOT_TOKEN" ] && [ -n "$TELEGRAM_ADMIN_CHAT_ID" ]; then
+            curl -sS -m 15 -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
+              -d chat_id="$TELEGRAM_ADMIN_CHAT_ID" \
+              --data-urlencode text="cropcast daily-pipeline job failed: $RUN_URL" > /dev/null
+          fi

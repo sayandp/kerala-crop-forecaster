@@ -27,6 +27,8 @@ class Settings(BaseSettings):
 
     # --- Database ---
     database_url: str = "postgresql+psycopg://cropcast:cropcast@localhost:5432/cropcast"
+    # Throwaway database for DB tests (they TRUNCATE tables). Tests skip when unset/unreachable.
+    test_database_url: str | None = None
 
     # --- data.gov.in "Current Daily Price of Various Commodities from Various Markets (Mandi)"
     # Returns today's prices only; history is accumulated by the daily pull.
