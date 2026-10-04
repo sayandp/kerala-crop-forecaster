@@ -164,7 +164,9 @@ Never hardcode secrets. Never commit `.env`. Read env only via `cropcast.config.
 
 ## Build order / status
 
-- [ ] 1. Daily ingest cron live (start early — history accumulates) + backfill + EDA
+- [x] 1. Daily ingest cron live (start early — history accumulates) + backfill + EDA
+      (daily source order: Agmarknet 2.0 report API → data.gov.in fallback; Rubber Board stubbed;
+      backfill 2018-01→ via Agmarknet 2.0; recommended series in `notebooks/eda.ipynb` §9)
 - [ ] 2. Baselines, features, LightGBM, walk-forward backtest, MLflow logging
 - [ ] 3. Registry + promotion gate + batch predict → Postgres
 - [ ] 4. FastAPI + Docker + deploy; Streamlit dashboard
