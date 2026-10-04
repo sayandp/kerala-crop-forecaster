@@ -1,0 +1,16 @@
+{
+ "_fixture_note": "HAND-BUILT, not a captured response: api.data.gov.in refused connections when this was written (2026-10-04). Shape follows the documented resource 9ef84268-d588-465a-a308-a864a43d0070 (string-typed prices, dd/mm/yyyy arrival_date). Replace with a real capture: curl 'https://api.data.gov.in/resource/9ef84268-d588-465a-a308-a864a43d0070?api-key=KEY&format=json&limit=10&filters[state.keyword]=Kerala'",
+ "title": "Current Daily Price of Various Commodities from Various Markets (Mandi)",
+ "total": 6,
+ "count": 6,
+ "limit": "10",
+ "offset": "0",
+ "records": [
+  {"state": "Kerala", "district": "Ernakulam", "market": "Ernakulam", "commodity": "Banana", "variety": "Nendra Bale", "grade": "FAQ", "arrival_date": "03/10/2026", "min_price": "5500", "max_price": "6500", "modal_price": "6000"},
+  {"state": "Kerala", "district": "Kottayam", "market": "Kottayam", "commodity": "Rubber", "variety": "RSS-4", "grade": "FAQ", "arrival_date": "03/10/2026", "min_price": "18200", "max_price": "18500", "modal_price": "18400"},
+  {"state": "Kerala", "district": "Wayanad", "market": "Kalpetta", "commodity": "Black pepper", "variety": "Ungrabled", "grade": "FAQ", "arrival_date": "03/10/2026", "min_price": "64000", "max_price": "65500", "modal_price": "65000"},
+  {"state": "Kerala", "district": "Thiruvananthapuram", "market": "Neyyattinkara", "commodity": "Tapioca", "variety": "Other", "grade": "FAQ", "arrival_date": "03/10/2026", "min_price": "2800", "max_price": "3200", "modal_price": "3000"},
+  {"state": "Kerala", "district": "Kozhikode(Calicut)", "market": "Vadakara", "commodity": "Coconut Seed", "variety": "Other", "grade": "FAQ", "arrival_date": "03/10/2026", "min_price": "4000", "max_price": "4200", "modal_price": "4100"},
+  {"state": "Tamil Nadu", "district": "Coimbatore", "market": "Mettupalayam", "commodity": "Banana", "variety": "Nendra Bale", "grade": "FAQ", "arrival_date": "03/10/2026", "min_price": "5000", "max_price": "6000", "modal_price": "5500"}
+ ]
+}

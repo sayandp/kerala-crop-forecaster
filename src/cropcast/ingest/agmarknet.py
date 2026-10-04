@@ -81,7 +81,7 @@ def _finish(df: pd.DataFrame, source: str) -> pd.DataFrame:
         return _empty()
     df["source"] = source
     for col in ("min_price", "max_price", "modal_price"):
-        df[col] = pd.to_numeric(df[col], errors="coerce")
+        df[col] = pd.to_numeric(df[col], errors="coerce").astype(float)
     return df.reindex(columns=STANDARD_COLUMNS)
 
 

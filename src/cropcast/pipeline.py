@@ -73,10 +73,12 @@ def run_ingest(ctx: RunContext) -> StepResult:
     metrics: dict[str, Any] = {"raw_rows": len(raw), "target_rows": len(prices)}
     if not ctx.dry_run:
         # Immutable snapshot: a new file per ingest, never overwritten.
-        out = _snapshot_dir(ctx.run_date) / f"{datetime.now(IST):%Y%m%dT%H%M%S}.parquet"
+        out = _snapshot_dir(ctx.run_date) / f"{datetime.now(IST):%Y%m%dT%H%M%S%f}.parquet"
         out.parent.mkdir(parents=True, exist_ok=True)
+        if out.exists():  # immutable: never overwrite a snapshot
+            raise FileExistsError(out)
         prices.to_parquet(out, index=False)
-        metrics["snapshot"] = str(out.relative_to(PROJECT_ROOT))
+        metrics["snapshot"] = str(out)
     return StepResult("ingest", metrics=metrics)
 
 

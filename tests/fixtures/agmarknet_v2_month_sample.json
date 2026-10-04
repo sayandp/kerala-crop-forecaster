@@ -1,0 +1,298 @@
+{
+ "success": true,
+ "message": "Data fetched successfully.",
+ "title": "Date Wise Prices for Specified Commodity on January, 2018 for Commodity : Banana, State/UT : Keralam",
+ "columns": [
+  {
+   "key": "arrivalDate",
+   "title": "Arrival Date"
+  },
+  {
+   "key": "arrivals",
+   "title": "Arrivals (Metric Tonnes)"
+  },
+  {
+   "key": "variety",
+   "title": "Variety"
+  },
+  {
+   "key": "minimumPrice",
+   "title": "Minimum Price (Rs./Quintal)"
+  },
+  {
+   "key": "maximumPrice",
+   "title": "Maximum Price (Rs./Quintal)"
+  },
+  {
+   "key": "modalPrice",
+   "title": "Modal Price (Rs./Quintal)"
+  }
+ ],
+ "markets": [
+  {
+   "marketName": "ARWM Muvattupuzha",
+   "dates": [
+    {
+     "arrivalDate": "02/01/2018",
+     "total_arrivals": 51.999999,
+     "data": [
+      {
+       "arrivals": 17.333333,
+       "variety": "Other",
+       "minimumPrice": 2900.0,
+       "maximumPrice": 3200.0,
+       "modalPrice": 3050.0
+      },
+      {
+       "arrivals": 17.333333,
+       "variety": "Palayamthodan",
+       "minimumPrice": 1850.0,
+       "maximumPrice": 2100.0,
+       "modalPrice": 2000.0
+      },
+      {
+       "arrivals": 17.333333,
+       "variety": "Poovan",
+       "minimumPrice": 3150.0,
+       "maximumPrice": 3500.0,
+       "modalPrice": 3300.0
+      }
+     ]
+    },
+    {
+     "arrivalDate": "03/01/2018",
+     "total_arrivals": 51.999999,
+     "data": [
+      {
+       "arrivals": 17.333333,
+       "variety": "Other",
+       "minimumPrice": 2900.0,
+       "maximumPrice": 3250.0,
+       "modalPrice": 3100.0
+      },
+      {
+       "arrivals": 17.333333,
+       "variety": "Poovan",
+       "minimumPrice": 3100.0,
+       "maximumPrice": 3350.0,
+       "modalPrice": 3250.0
+      },
+      {
+       "arrivals": 17.333333,
+       "variety": "Palayamthodan",
+       "minimumPrice": 1850.0,
+       "maximumPrice": 2100.0,
+       "modalPrice": 2000.0
+      }
+     ]
+    },
+    {
+     "arrivalDate": "04/01/2018",
+     "total_arrivals": 51.999999,
+     "data": [
+      {
+       "arrivals": 17.333333,
+       "variety": "Poovan",
+       "minimumPrice": 3100.0,
+       "maximumPrice": 3400.0,
+       "modalPrice": 3250.0
+      },
+      {
+       "arrivals": 17.333333,
+       "variety": "Palayamthodan",
+       "minimumPrice": 1900.0,
+       "maximumPrice": 2200.0,
+       "modalPrice": 2050.0
+      },
+      {
+       "arrivals": 17.333333,
+       "variety": "Other",
+       "minimumPrice": 2950.0,
+       "maximumPrice": 3250.0,
+       "modalPrice": 3100.0
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "marketName": "Adimali Market",
+   "dates": [
+    {
+     "arrivalDate": "05/01/2018",
+     "total_arrivals": 0.1,
+     "data": [
+      {
+       "arrivals": 0.05,
+       "variety": "Palayamthodan",
+       "minimumPrice": 1500.0,
+       "maximumPrice": 1700.0,
+       "modalPrice": 1600.0
+      },
+      {
+       "arrivals": 0.05,
+       "variety": "Poovan",
+       "minimumPrice": 2000.0,
+       "maximumPrice": 2300.0,
+       "modalPrice": 2200.0
+      }
+     ]
+    },
+    {
+     "arrivalDate": "09/01/2018",
+     "total_arrivals": 0.099999,
+     "data": [
+      {
+       "arrivals": 0.033333,
+       "variety": "Robusta",
+       "minimumPrice": 1300.0,
+       "maximumPrice": 1500.0,
+       "modalPrice": 1400.0
+      },
+      {
+       "arrivals": 0.033333,
+       "variety": "Palayamthodan",
+       "minimumPrice": 2000.0,
+       "maximumPrice": 2200.0,
+       "modalPrice": 2100.0
+      },
+      {
+       "arrivals": 0.033333,
+       "variety": "Poovan",
+       "minimumPrice": 2000.0,
+       "maximumPrice": 2200.0,
+       "modalPrice": 2100.0
+      }
+     ]
+    },
+    {
+     "arrivalDate": "12/01/2018",
+     "total_arrivals": 0.1,
+     "data": [
+      {
+       "arrivals": 0.05,
+       "variety": "Poovan",
+       "minimumPrice": 2800.0,
+       "maximumPrice": 3000.0,
+       "modalPrice": 2900.0
+      },
+      {
+       "arrivals": 0.05,
+       "variety": "Palayamthodan",
+       "minimumPrice": 2000.0,
+       "maximumPrice": 2200.0,
+       "modalPrice": 2100.0
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "marketName": "Alappuzha Market",
+   "dates": [
+    {
+     "arrivalDate": "22/01/2018",
+     "total_arrivals": 40.0,
+     "data": [
+      {
+       "arrivals": 10.0,
+       "variety": "Palayamthodan",
+       "minimumPrice": 3200.0,
+       "maximumPrice": 3350.0,
+       "modalPrice": 3275.0
+      },
+      {
+       "arrivals": 10.0,
+       "variety": "Nendra Bale",
+       "minimumPrice": 2600.0,
+       "maximumPrice": 2750.0,
+       "modalPrice": 2700.0
+      },
+      {
+       "arrivals": 10.0,
+       "variety": "Other",
+       "minimumPrice": 5000.0,
+       "maximumPrice": 5125.0,
+       "modalPrice": 5100.0
+      },
+      {
+       "arrivals": 10.0,
+       "variety": "Robusta",
+       "minimumPrice": 2500.0,
+       "maximumPrice": 2675.0,
+       "modalPrice": 2600.0
+      }
+     ]
+    },
+    {
+     "arrivalDate": "23/01/2018",
+     "total_arrivals": 40.0,
+     "data": [
+      {
+       "arrivals": 10.0,
+       "variety": "Nendra Bale",
+       "minimumPrice": 2600.0,
+       "maximumPrice": 2700.0,
+       "modalPrice": 2650.0
+      },
+      {
+       "arrivals": 10.0,
+       "variety": "Palayamthodan",
+       "minimumPrice": 3150.0,
+       "maximumPrice": 3275.0,
+       "modalPrice": 3200.0
+      },
+      {
+       "arrivals": 10.0,
+       "variety": "Robusta",
+       "minimumPrice": 2500.0,
+       "maximumPrice": 2625.0,
+       "modalPrice": 2575.0
+      },
+      {
+       "arrivals": 10.0,
+       "variety": "Other",
+       "minimumPrice": 4950.0,
+       "maximumPrice": 5050.0,
+       "modalPrice": 5000.0
+      }
+     ]
+    },
+    {
+     "arrivalDate": "25/01/2018",
+     "total_arrivals": 40.0,
+     "data": [
+      {
+       "arrivals": 10.0,
+       "variety": "Palayamthodan",
+       "minimumPrice": 3150.0,
+       "maximumPrice": 3275.0,
+       "modalPrice": 3200.0
+      },
+      {
+       "arrivals": 10.0,
+       "variety": "Robusta",
+       "minimumPrice": 2500.0,
+       "maximumPrice": 2600.0,
+       "modalPrice": 2550.0
+      },
+      {
+       "arrivals": 10.0,
+       "variety": "Nendra Bale",
+       "minimumPrice": 2500.0,
+       "maximumPrice": 2600.0,
+       "modalPrice": 2550.0
+      },
+      {
+       "arrivals": 10.0,
+       "variety": "Other",
+       "minimumPrice": 5000.0,
+       "maximumPrice": 5150.0,
+       "modalPrice": 5100.0
+      }
+     ]
+    }
+   ]
+  }
+ ]
+}

@@ -1,0 +1,488 @@
+{
+ "success": true,
+ "message": "Data fetched successfully.",
+ "title": "Commodity-wise, Market-wise Daily Report for State/UT on: 01-Oct-2026 State/UT : Keralam",
+ "columns": [
+  {
+   "key": "marketCenter",
+   "title": "Market"
+  },
+  {
+   "key": "arrivals",
+   "title": "Arrivals"
+  },
+  {
+   "key": "unitOfArrivals",
+   "title": "Unit of Arrivals"
+  },
+  {
+   "key": "variety",
+   "title": "Variety"
+  },
+  {
+   "key": "minimumPrice",
+   "title": "Minimum Prices"
+  },
+  {
+   "key": "maximumPrice",
+   "title": "Maximum Prices"
+  },
+  {
+   "key": "modalPrice",
+   "title": "Modal Prices"
+  },
+  {
+   "key": "unitOfPrice",
+   "title": "Unit of Price"
+  }
+ ],
+ "commodityGroups": [
+  {
+   "CommodityGroup": "Fruits",
+   "commodities": [
+    {
+     "commodityName": "Banana",
+     "markets": [
+      {
+       "marketCenter": "ARWM Muvattupuzha",
+       "total_arrivals": 0.2,
+       "data": [
+        {
+         "arrivals": 0.1,
+         "unitOfArrivals": "Metric Tonnes",
+         "variety": "Nendra Bale",
+         "minimumPrice": 4500.0,
+         "maximumPrice": 6000.0,
+         "modalPrice": 5500.0,
+         "unitOfPrice": "Rs./Quintal"
+        },
+        {
+         "arrivals": 0.1,
+         "unitOfArrivals": "Metric Tonnes",
+         "variety": "Robusta",
+         "minimumPrice": 2200.0,
+         "maximumPrice": 3000.0,
+         "modalPrice": 2700.0,
+         "unitOfPrice": "Rs./Quintal"
+        }
+       ]
+      },
+      {
+       "marketCenter": "Alacode  VFPCK Market",
+       "total_arrivals": 0.32,
+       "data": [
+        {
+         "arrivals": 0.32,
+         "unitOfArrivals": "Metric Tonnes",
+         "variety": "Banana - Ripe",
+         "minimumPrice": 5600.0,
+         "maximumPrice": 6000.0,
+         "modalPrice": 5800.0,
+         "unitOfPrice": "Rs./Quintal"
+        }
+       ]
+      },
+      {
+       "marketCenter": "Alengad  VFPCK Market",
+       "total_arrivals": 0.304,
+       "data": [
+        {
+         "arrivals": 0.304,
+         "unitOfArrivals": "Metric Tonnes",
+         "variety": "Robusta",
+         "minimumPrice": 1400.0,
+         "maximumPrice": 3400.0,
+         "modalPrice": 2500.0,
+         "unitOfPrice": "Rs./Quintal"
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "CommodityGroup": "Others",
+   "commodities": [
+    {
+     "commodityName": "Rubber",
+     "markets": [
+      {
+       "marketCenter": "Ezhamkulam Market",
+       "total_arrivals": 0.8,
+       "data": [
+        {
+         "arrivals": 0.8,
+         "unitOfArrivals": "Metric Tonnes",
+         "variety": "RSS-4",
+         "minimumPrice": 25100.0,
+         "maximumPrice": 25200.0,
+         "modalPrice": 25200.0,
+         "unitOfPrice": "Rs./Quintal"
+        }
+       ]
+      },
+      {
+       "marketCenter": "Kalpetta Market",
+       "total_arrivals": 15.0,
+       "data": [
+        {
+         "arrivals": 15.0,
+         "unitOfArrivals": "Metric Tonnes",
+         "variety": "RSS-4",
+         "minimumPrice": 25200.0,
+         "maximumPrice": 25400.0,
+         "modalPrice": 25300.0,
+         "unitOfPrice": "Rs./Quintal"
+        }
+       ]
+      },
+      {
+       "marketCenter": "Mananthavady Market",
+       "total_arrivals": 4.8,
+       "data": [
+        {
+         "arrivals": 4.8,
+         "unitOfArrivals": "Metric Tonnes",
+         "variety": "Other",
+         "minimumPrice": 25600.0,
+         "maximumPrice": 25700.0,
+         "modalPrice": 25700.0,
+         "unitOfPrice": "Rs./Quintal"
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "CommodityGroup": "Spices",
+   "commodities": [
+    {
+     "commodityName": "Black pepper",
+     "markets": [
+      {
+       "marketCenter": "Kalpetta Market",
+       "total_arrivals": 22.1,
+       "data": [
+        {
+         "arrivals": 22.1,
+         "unitOfArrivals": "Metric Tonnes",
+         "variety": "Ungrabled",
+         "minimumPrice": 68000.0,
+         "maximumPrice": 70000.0,
+         "modalPrice": 69000.0,
+         "unitOfPrice": "Rs./Quintal"
+        }
+       ]
+      },
+      {
+       "marketCenter": "Kanjangadu Market",
+       "total_arrivals": 0.7,
+       "data": [
+        {
+         "arrivals": 0.7,
+         "unitOfArrivals": "Metric Tonnes",
+         "variety": "Malabar",
+         "minimumPrice": 64700.0,
+         "maximumPrice": 65400.0,
+         "modalPrice": 65000.0,
+         "unitOfPrice": "Rs./Quintal"
+        }
+       ]
+      },
+      {
+       "marketCenter": "Kannur Market",
+       "total_arrivals": 6.0,
+       "data": [
+        {
+         "arrivals": 6.0,
+         "unitOfArrivals": "Metric Tonnes",
+         "variety": "Other",
+         "minimumPrice": 67000.0,
+         "maximumPrice": 69000.0,
+         "modalPrice": 68000.0,
+         "unitOfPrice": "Rs./Quintal"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "commodityName": "Coconut",
+     "markets": [
+      {
+       "marketCenter": "Chengannur Market",
+       "total_arrivals": 1.0,
+       "data": [
+        {
+         "arrivals": 1.0,
+         "unitOfArrivals": "Metric Tonnes",
+         "variety": "Big",
+         "minimumPrice": 6400.0,
+         "maximumPrice": 6800.0,
+         "modalPrice": 6500.0,
+         "unitOfPrice": "Rs./Quintal"
+        }
+       ]
+      },
+      {
+       "marketCenter": "Kanjangadu Market",
+       "total_arrivals": 2.0,
+       "data": [
+        {
+         "arrivals": 2.0,
+         "unitOfArrivals": "Metric Tonnes",
+         "variety": "Coconut",
+         "minimumPrice": 4800.0,
+         "maximumPrice": 5300.0,
+         "modalPrice": 5000.0,
+         "unitOfPrice": "Rs./Quintal"
+        }
+       ]
+      },
+      {
+       "marketCenter": "Koduvayoor Market",
+       "total_arrivals": 40.0,
+       "data": [
+        {
+         "arrivals": 40.0,
+         "unitOfArrivals": "Metric Tonnes",
+         "variety": "Big",
+         "minimumPrice": 5200.0,
+         "maximumPrice": 5600.0,
+         "modalPrice": 5400.0,
+         "unitOfPrice": "Rs./Quintal"
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "CommodityGroup": "Vegetables",
+   "commodities": [
+    {
+     "commodityName": "Banana - Green",
+     "markets": [
+      {
+       "marketCenter": "Aralamoodu Market",
+       "total_arrivals": 2.0,
+       "data": [
+        {
+         "arrivals": 2.0,
+         "unitOfArrivals": "Metric Tonnes",
+         "variety": "Banana - Green",
+         "minimumPrice": 6000.0,
+         "maximumPrice": 6500.0,
+         "modalPrice": 6500.0,
+         "unitOfPrice": "Rs./Quintal"
+        }
+       ]
+      },
+      {
+       "marketCenter": "Athirampuzha Market",
+       "total_arrivals": 2.0,
+       "data": [
+        {
+         "arrivals": 2.0,
+         "unitOfArrivals": "Metric Tonnes",
+         "variety": "Banana - Green",
+         "minimumPrice": 5600.0,
+         "maximumPrice": 5800.0,
+         "modalPrice": 5700.0,
+         "unitOfPrice": "Rs./Quintal"
+        }
+       ]
+      },
+      {
+       "marketCenter": "Chala Market",
+       "total_arrivals": 20.0,
+       "data": [
+        {
+         "arrivals": 20.0,
+         "unitOfArrivals": "Metric Tonnes",
+         "variety": "Other",
+         "minimumPrice": 4200.0,
+         "maximumPrice": 4800.0,
+         "modalPrice": 4500.0,
+         "unitOfPrice": "Rs./Quintal"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "commodityName": "Coriander(Leaves)",
+     "markets": [
+      {
+       "marketCenter": "Manjeri Market",
+       "total_arrivals": 2.0,
+       "data": [
+        {
+         "arrivals": 2.0,
+         "unitOfArrivals": "Bundle",
+         "variety": "Coriander",
+         "minimumPrice": 6950.0,
+         "maximumPrice": 7050.0,
+         "modalPrice": 7000.0,
+         "unitOfPrice": "Rs./Bundle"
+        }
+       ]
+      },
+      {
+       "marketCenter": "North Paravur Market",
+       "total_arrivals": 1.0,
+       "data": [
+        {
+         "arrivals": 1.0,
+         "unitOfArrivals": "Bundle",
+         "variety": "Coriander",
+         "minimumPrice": 10000.0,
+         "maximumPrice": 11500.0,
+         "modalPrice": 10500.0,
+         "unitOfPrice": "Rs./Bundle"
+        }
+       ]
+      },
+      {
+       "marketCenter": "Parappanangadi Market",
+       "total_arrivals": 0.2,
+       "data": [
+        {
+         "arrivals": 0.2,
+         "unitOfArrivals": "Bundle",
+         "variety": "Coriander",
+         "minimumPrice": 7100.0,
+         "maximumPrice": 7300.0,
+         "modalPrice": 7200.0,
+         "unitOfPrice": "Rs./Bundle"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "commodityName": "Onion",
+     "markets": [
+      {
+       "marketCenter": "Anchal Market",
+       "total_arrivals": 0.87,
+       "data": [
+        {
+         "arrivals": 0.5,
+         "unitOfArrivals": "Metric Tonnes",
+         "variety": "Big",
+         "minimumPrice": 6500.0,
+         "maximumPrice": 6500.0,
+         "modalPrice": 6500.0,
+         "unitOfPrice": "Rs./Quintal"
+        },
+        {
+         "arrivals": 0.37,
+         "unitOfArrivals": "Metric Tonnes",
+         "variety": "Small",
+         "minimumPrice": 6800.0,
+         "maximumPrice": 6800.0,
+         "modalPrice": 6800.0,
+         "unitOfPrice": "Rs./Quintal"
+        }
+       ]
+      },
+      {
+       "marketCenter": "Aralamoodu Market",
+       "total_arrivals": 5.0,
+       "data": [
+        {
+         "arrivals": 3.0,
+         "unitOfArrivals": "Metric Tonnes",
+         "variety": "Big",
+         "minimumPrice": 6000.0,
+         "maximumPrice": 6500.0,
+         "modalPrice": 6500.0,
+         "unitOfPrice": "Rs./Quintal"
+        },
+        {
+         "arrivals": 2.0,
+         "unitOfArrivals": "Metric Tonnes",
+         "variety": "Onion",
+         "minimumPrice": 10000.0,
+         "maximumPrice": 10000.0,
+         "modalPrice": 10000.0,
+         "unitOfPrice": "Rs./Quintal"
+        }
+       ]
+      },
+      {
+       "marketCenter": "Aroor Market",
+       "total_arrivals": 0.2,
+       "data": [
+        {
+         "arrivals": 0.2,
+         "unitOfArrivals": "Metric Tonnes",
+         "variety": "Big",
+         "minimumPrice": 5600.0,
+         "maximumPrice": 5800.0,
+         "modalPrice": 5700.0,
+         "unitOfPrice": "Rs./Quintal"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "commodityName": "Tapioca",
+     "markets": [
+      {
+       "marketCenter": "ARWM Muvattupuzha",
+       "total_arrivals": 0.1,
+       "data": [
+        {
+         "arrivals": 0.1,
+         "unitOfArrivals": "Metric Tonnes",
+         "variety": "Tapioca",
+         "minimumPrice": 2200.0,
+         "maximumPrice": 3200.0,
+         "modalPrice": 2600.0,
+         "unitOfPrice": "Rs./Quintal"
+        }
+       ]
+      },
+      {
+       "marketCenter": "Anchal Market",
+       "total_arrivals": 0.4,
+       "data": [
+        {
+         "arrivals": 0.4,
+         "unitOfArrivals": "Metric Tonnes",
+         "variety": "Other",
+         "minimumPrice": 3500.0,
+         "maximumPrice": 3500.0,
+         "modalPrice": 3500.0,
+         "unitOfPrice": "Rs./Quintal"
+        }
+       ]
+      },
+      {
+       "marketCenter": "Aralamoodu Market",
+       "total_arrivals": 2.0,
+       "data": [
+        {
+         "arrivals": 2.0,
+         "unitOfArrivals": "Metric Tonnes",
+         "variety": "Tapioca",
+         "minimumPrice": 3000.0,
+         "maximumPrice": 4000.0,
+         "modalPrice": 4000.0,
+         "unitOfPrice": "Rs./Quintal"
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ ]
+}
