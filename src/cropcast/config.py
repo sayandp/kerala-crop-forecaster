@@ -64,6 +64,7 @@ class Settings(BaseSettings):
     # --- Open-Meteo ---
     openmeteo_forecast_url: str = "https://api.open-meteo.com/v1/forecast"
     openmeteo_archive_url: str = "https://archive-api.open-meteo.com/v1/archive"
+    openmeteo_archive_interval_s: float = 30.0
 
     # --- Domain ---
     state: str = "Kerala"

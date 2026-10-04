@@ -59,7 +59,9 @@ def parse_openmeteo(payload: Any, names: list[str]) -> pd.DataFrame:
     ]
 
 
-def _fetch(client: httpx.Client, url: str, start: date, end: date) -> pd.DataFrame:
+def _fetch(
+    client: httpx.Client, url: str, start: date, end: date, min_interval: float = 1.0
+) -> pd.DataFrame:
     d = districts()
     names = list(d)
     payload = get_json(
@@ -73,7 +75,7 @@ def _fetch(client: httpx.Client, url: str, start: date, end: date) -> pd.DataFra
             "start_date": start.isoformat(),
             "end_date": end.isoformat(),
         },
-        min_interval=1.0,
+        min_interval=min_interval,
     )
     return parse_openmeteo(payload, names)
 
@@ -89,7 +91,17 @@ def fetch_weather(start: date, end: date) -> pd.DataFrame:
         cur = start
         while cur <= min(end, split):
             chunk_end = min(date(cur.year, 12, 31), end, split)
-            frames.append(_fetch(client, settings.openmeteo_archive_url, cur, chunk_end))
+            # A 14-location x 1-year request is "heavy" in Open-Meteo's weighted rate limit
+            # (free tier: per-minute cap), so space archive calls well apart.
+            frames.append(
+                _fetch(
+                    client,
+                    settings.openmeteo_archive_url,
+                    cur,
+                    chunk_end,
+                    min_interval=settings.openmeteo_archive_interval_s,
+                )
+            )
             cur = chunk_end + timedelta(days=1)
         if end > split:
             frames.append(
