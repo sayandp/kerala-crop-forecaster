@@ -90,7 +90,7 @@ def _finish(df: pd.DataFrame, source: str) -> pd.DataFrame:
 # ---------------------------------------------------------------------------
 
 
-def _portal_client() -> httpx.Client:
+def portal_client() -> httpx.Client:
     # The API serves the agmarknet.gov.in SPA; identify ourselves the same way it does.
     return make_client(Origin="https://agmarknet.gov.in", Referer="https://agmarknet.gov.in/")
 
@@ -111,7 +111,7 @@ def fetch_portal_daily(
         cached: dict[str, Any] = _read_cache(cache)
         return cached
     own = client is None
-    client = client or _portal_client()
+    client = client or portal_client()
     try:
         payload = get_json(
             client,
@@ -184,7 +184,7 @@ def fetch_portal_month(
         cached: dict[str, Any] = _read_cache(cache)
         return cached
     own = client is None
-    client = client or _portal_client()
+    client = client or portal_client()
     try:
         payload = get_json(
             client,
@@ -234,7 +234,7 @@ def parse_portal_month(payload: dict[str, Any], commodity_name: str) -> pd.DataF
 # ---------------------------------------------------------------------------
 
 
-def _norm_key(key: str) -> str:
+def norm_key(key: str) -> str:
     # The resource has shipped both "Modal_x0020_Price"/"Arrival_Date" and
     # "modal_price"/"arrival_date" style keys; fold them to one form.
     return key.replace("_x0020_", "_").replace(" ", "_").strip().lower()
@@ -283,7 +283,7 @@ def fetch_datagov(
 
 
 def parse_datagov(records: Iterable[dict[str, Any]]) -> pd.DataFrame:
-    rows = [{_norm_key(k): v for k, v in r.items()} for r in records]
+    rows = [{norm_key(k): v for k, v in r.items()} for r in records]
     df = pd.DataFrame(rows)
     if df.empty:
         return _empty()
@@ -313,7 +313,7 @@ def fetch_kerala_prices(run_date: date, lookback_days: int | None = None) -> pd.
     for source in settings.ingest_sources:
         try:
             if source == "agmarknet":
-                with _portal_client() as client:
+                with portal_client() as client:
                     frames = [parse_portal_daily(fetch_portal_daily(d, client), d) for d in days]
                 df = pd.concat(frames, ignore_index=True)
             else:
