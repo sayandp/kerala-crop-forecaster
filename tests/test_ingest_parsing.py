@@ -100,3 +100,14 @@ def test_parse_openmeteo_multi_location() -> None:
     assert df.loc[0, "rainfall_mm"] == 12.0
     assert isinstance(df.loc[0, "date"], date)
     assert not pd.isna(df["temp_mean_c"]).any()
+
+
+def test_frozen_sample_prices_fixture() -> None:
+    from tests.conftest import FIXTURES
+
+    df = pd.read_parquet(FIXTURES / "sample_prices.parquet")
+    assert set(df["commodity"]) == {"banana", "coconut", "rubber", "pepper", "tapioca"}
+    assert df.groupby(["commodity", "market", "variety"]).ngroups == 6
+    assert (df["date"].max() - df["date"].min()).days >= 700
+    assert not df.duplicated(["date", "market", "commodity", "variety"]).any()
+    assert (df["modal_price"] > 0).all()
