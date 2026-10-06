@@ -25,5 +25,8 @@ series:
   - {commodity: tapioca, market: Payyannur, variety: Other}
   - {commodity: tapioca, market: Perumbavoor, variety: Tapioca}
   - {commodity: tapioca, market: North Paravur, variety: Other}
-  # rubber (provisional: 25.7 % missing; no series passes the EDA rule)
-  - {commodity: rubber, market: Pulpally, variety: Other}
+  # rubber
+  - {commodity: rubber, market: Pulpally, variety: Other}  # provisional: 25.7 % missing
+  # Kalpetta "Other" (to 2025-11-06) + "RSS-4" (from 2025-11-07) stitched by the accepted
+  # variety alias (guard ratio +0.6 %). Added in Phase 2.5 by decision.
+  - {commodity: rubber, market: Kalpetta, variety: RSS-4}
