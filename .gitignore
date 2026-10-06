@@ -8,7 +8,10 @@ __pycache__/
 .ipynb_checkpoints/
 data/raw/
 data/cache/
-reports/
+reports/*
+!reports/phase2_5/
+reports/phase2_5/*.parquet
+!reports/phase2_5_signal_hunt.md
 logs/
 mlruns/
 mlflow.db
@@ -16,3 +19,4 @@ mlflow.db
 data/snapshots/
 data/features/
 data/archive/
+data/upstream/

@@ -79,6 +79,7 @@ def run_backtest(
     fold_numbers: list[int] | None = None,
     quantiles: tuple[float, ...] | None = None,
     on_fold: Callable[[Fold, pd.DataFrame], None] | None = None,
+    feature_columns: list[str] | None = None,
 ) -> BacktestResult:
     rows: list[pd.DataFrame] = []
     all_folds: list[Fold] = []
@@ -97,6 +98,8 @@ def run_backtest(
                 lgbm.params = dict(lgbm_params)
             if quantiles:
                 lgbm.quantiles = quantiles
+            if feature_columns:
+                lgbm.features = list(feature_columns)
             lgbm.fit(train)
             last_lgbm[h] = lgbm
             models: list[Forecaster] = [lgbm, *(b().fit(train) for b in BASELINES)]

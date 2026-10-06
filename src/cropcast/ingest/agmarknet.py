@@ -176,15 +176,20 @@ def fetch_portal_month(
     commodity_id: int,
     client: httpx.Client | None = None,
     use_cache: bool = True,
+    state_id: int | None = None,
 ) -> dict[str, Any]:
-    """Date-wise prices for one commodity, one month, all Kerala markets (cached)."""
-    cache = (
-        settings.cache_dir
-        / "agmarknet_v2"
-        / "monthly"
-        / str(commodity_id)
-        / f"{year:04d}-{month:02d}.json"
+    """Date-wise prices for one commodity, one month, all markets of a state (cached).
+
+    `state_id` defaults to Kerala; other states (upstream markets) cache under monthly_state/.
+    """
+    state = settings.agmarknet_state_id if state_id is None else state_id
+    base = settings.cache_dir / "agmarknet_v2"
+    folder = (
+        base / "monthly"
+        if state == settings.agmarknet_state_id
+        else (base / "monthly_state" / str(state))
     )
+    cache = folder / str(commodity_id) / f"{year:04d}-{month:02d}.json"
     month_end = (pd.Timestamp(year=year, month=month, day=1) + pd.offsets.MonthEnd(0)).date()
     if use_cache and cache.exists() and _is_final(month_end):
         cached: dict[str, Any] = _read_cache(cache)
@@ -199,7 +204,7 @@ def fetch_portal_month(
                 "year": year,
                 "month": month,
                 "includeExcel": "false",
-                "stateId": settings.agmarknet_state_id,
+                "stateId": state,
                 "commodityId": commodity_id,
             },
         )
