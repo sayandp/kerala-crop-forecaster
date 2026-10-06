@@ -89,8 +89,8 @@ def engine() -> Iterator[Engine]:
     with eng.begin() as conn:
         conn.execute(
             text(
-                "TRUNCATE prices_raw, prices_rejected, weather_daily, pipeline_runs, "
-                "archive_log CASCADE"
+                "TRUNCATE prices_raw, prices_rejected, weather_daily, pipeline_runs, forecasts, "
+                "shadow_predictions, channel_posts, archive_log CASCADE"
             )
         )
     yield eng
