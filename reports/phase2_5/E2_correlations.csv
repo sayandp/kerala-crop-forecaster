@@ -1,0 +1,15 @@
+crop,feature,n,spearman_vs_next7
+banana,up1_chg_1,5683,0.009
+banana,up1_chg_3,5670,0.032
+banana,up1_chg_7,5645,0.012
+banana,up2_chg_7,4919,0.006
+coconut,up1_chg_1,3412,0.054
+coconut,up1_chg_3,3412,0.044
+coconut,up1_chg_7,3412,0.077
+coconut,up2_chg_7,3275,0.023
+pepper,up1_chg_1,5612,0.017
+pepper,up1_chg_3,5582,0.023
+pepper,up1_chg_7,5588,0.063
+tapioca,up1_chg_1,2422,-0.013
+tapioca,up1_chg_3,2415,-0.014
+tapioca,up1_chg_7,2402,-0.007

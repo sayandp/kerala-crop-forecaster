@@ -1,0 +1,16 @@
+{
+ "name": "E2_upstream",
+ "description": "E0 + lagged 1/3/7-day change of upstream (TN/KA) median price index per crop",
+ "params": {
+  "features": 40,
+  "coverage_up1": "{\"banana\": 0.707, \"coconut\": 1.0, \"pepper\": 0.972, \"rubber\": 0.0, \"tapioca\": 0.355}",
+  "markets_per_index": 15
+ },
+ "headline": {
+  "mape_lgbm": 5.125294349967226,
+  "mape_naive": 5.108674325754814,
+  "rel_improvement_pct": -0.32532949161829805,
+  "dm_p": 0.7168561623454677
+ },
+ "verdict": "no win"
+}
