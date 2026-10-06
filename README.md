@@ -2,7 +2,8 @@
 
 Self-retraining MLOps system that forecasts daily mandi prices for Kerala crops
 (banana/Nendran, coconut, rubber RSS-4, pepper, tapioca). See `CLAUDE.md` for the
-full design. **Status: Phase 1** — daily ingest + historical backfill + EDA.
+full design. **Status: Phase 2 done** — daily ingest + clean layer, features, LightGBM vs baselines
+backtest logged to MLflow (DagsHub). Report: `notebooks/02_backtest_report.ipynb`.
 
 ## Quickstart
 
