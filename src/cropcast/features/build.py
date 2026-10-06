@@ -228,6 +228,8 @@ def build_features(
         wf.rename(columns={"date": "origin_date"}), on=["district", "origin_date"], how="left"
     )
 
+    # Explicit dtypes: e.g. missing weather must give float NaN columns, not object.
+    out[NUMERIC_FEATURES] = out[NUMERIC_FEATURES].astype(float)
     cats = (
         {k: [getattr(s, k) for s in series] for k in SERIES_KEY}
         if series is not None

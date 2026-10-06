@@ -349,3 +349,32 @@ def _records_any(df: pd.DataFrame, columns: Sequence[str]) -> list[dict[str, Any
             elif isinstance(v, pd.Timestamp):
                 r[k] = v.date()
     return recs
+
+
+def insert_model_metrics(
+    rows: pd.DataFrame, run_id: int | None, split: str, engine: Engine | None = None
+) -> int:
+    """Append aggregate metrics (model_name, model_version, commodity, horizon, metric, ...)."""
+    if rows.empty:
+        return 0
+    engine = engine or get_engine()
+    frame = rows.assign(run_id=run_id, split=split)
+    cols = (
+        "run_id",
+        "model_name",
+        "model_version",
+        "split",
+        "commodity",
+        "horizon",
+        "metric",
+        "value",
+        "naive_value",
+    )
+    stmt = text(
+        "INSERT INTO model_metrics (run_id, model_name, model_version, split, commodity, "
+        "horizon, metric, value, naive_value) VALUES (:run_id, :model_name, :model_version, "
+        ":split, :commodity, :horizon, :metric, :value, :naive_value)"
+    )
+    with engine.begin() as conn:
+        conn.execute(stmt, _records_any(frame, cols))
+    return len(frame)

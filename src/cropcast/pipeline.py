@@ -30,10 +30,22 @@ from cropcast.alerts.admin import send_admin_message
 from cropcast.clean.aliases import evaluate_candidates, load_candidates
 from cropcast.clean.build import build_clean, eligible_duplicates
 from cropcast.config import PROJECT_ROOT, settings
+from cropcast.features.series import load_series
+from cropcast.features.snapshot import Snapshot
 from cropcast.ingest.agmarknet import IST, fetch_kerala_prices, today_ist
 from cropcast.ingest.mappings import normalize
 from cropcast.ingest.weather import fetch_weather
 from cropcast.logging_setup import setup_logging
+from cropcast.models.training import (
+    MlflowSession,
+    backtest_and_log,
+    base_params,
+    default_params,
+    model_metrics_rows,
+    prepare_features,
+    train_final,
+)
+from cropcast.models.tune import TUNE_HORIZON, tune
 from cropcast.validate.schemas import check_reject_rate, validate
 
 log = logging.getLogger("cropcast.pipeline")
@@ -200,12 +212,123 @@ def run_clean(ctx: RunContext) -> StepResult:
     return StepResult("clean", metrics=metrics)
 
 
+# --- Phase 2: features -> train -> backtest (not in the daily workflow yet) -------------
+
+
+def _model_inputs(ctx: RunContext) -> tuple[Snapshot, dict[int, pd.DataFrame]]:
+    """Snapshot + features, built once per invocation (one DB read)."""
+    if "features" not in ctx.artifacts:
+        series = load_series()
+        built = prepare_features(ctx.engine or db.get_engine(), series, ctx.run_date)
+        ctx.artifacts.update({"series": series, "snapshot": built[0], "features": built[1]})
+    snap: Snapshot = ctx.artifacts["snapshot"]
+    feats: dict[int, pd.DataFrame] = ctx.artifacts["features"]
+    return snap, feats
+
+
+def _lgbm_params(ctx: RunContext) -> dict[str, Any]:
+    if "lgbm_params" not in ctx.artifacts:
+        params = default_params()
+        if ctx.tune:
+            snap, feats = _model_inputs(ctx)
+            params = tune(feats[TUNE_HORIZON], snap.prices, snap.last_date)
+        ctx.artifacts["lgbm_params"] = params
+    params_out: dict[str, Any] = ctx.artifacts["lgbm_params"]
+    return params_out
+
+
+def _mlflow_session(ctx: RunContext) -> MlflowSession | None:
+    """Parent MLflow run for this invocation (None in dry-run: nothing is logged)."""
+    if ctx.dry_run:
+        return None
+    if "mlflow" not in ctx.artifacts:
+        snap, _ = _model_inputs(ctx)
+        session = MlflowSession()
+        session.start(
+            run_name=f"run-{ctx.run_date}",
+            params=base_params(snap, ctx.artifacts["series"], _lgbm_params(ctx), ctx.tune),
+            tags={
+                "pipeline_run_id": str(ctx.run_id),
+                "git_sha": git_sha() or "unknown",
+                "env": settings.env,
+            },
+        )
+        ctx.artifacts["mlflow"] = session
+    sess: MlflowSession = ctx.artifacts["mlflow"]
+    return sess
+
+
+def run_features(ctx: RunContext) -> StepResult:
+    """prices_clean -> parquet snapshot -> features per horizon (parquet, never the DB)."""
+    snap, feats = _model_inputs(ctx)
+    metrics: dict[str, Any] = {
+        "series": len(ctx.artifacts["series"]),
+        "data_from": str(snap.first_date),
+        "data_to": str(snap.last_date),
+        "snapshot": str(snap.prices_path),
+    }
+    for h, f in feats.items():
+        metrics[f"rows_h{h}"] = len(f)
+        metrics[f"train_rows_h{h}"] = int(f["target"].notna().sum())
+    return StepResult("features", metrics=metrics)
+
+
+def run_train(ctx: RunContext) -> StepResult:
+    """Final per-horizon LightGBM quantile models on all data (logged, not registered)."""
+    _, feats = _model_inputs(ctx)
+    models = train_final(feats, _lgbm_params(ctx), _mlflow_session(ctx))
+    metrics = {f"best_iter_h{h}": m.best_iterations for h, m in models.items()}
+    return StepResult("train", metrics=metrics)
+
+
+def run_backtest(ctx: RunContext) -> StepResult:
+    """Walk-forward backtest vs baselines -> MLflow + model_metrics (split='backtest')."""
+    snap, feats = _model_inputs(ctx)
+    session = _mlflow_session(ctx)
+    result, tables = backtest_and_log(feats, snap, _lgbm_params(ctx), session)
+    out_dir = settings.reports_dir / f"backtest_{snap.last_date}"
+    out_dir.mkdir(parents=True, exist_ok=True)
+    for name, t in tables.items():
+        t.to_csv(out_dir / f"{name}.csv", index=False)
+    result.predictions.to_parquet(out_dir / "predictions.parquet", index=False)
+    ctx.artifacts["backtest"] = result
+    metrics: dict[str, Any] = {"report_dir": str(out_dir)}
+    for r in tables["by_horizon"].to_dict("records"):
+        h = int(r["horizon"])
+        metrics[f"h{h}"] = {
+            "mape_lgbm": round(float(r["mape_lgbm"]), 3),
+            "mape_naive": round(float(r["mape_naive"]), 3),
+            "mape_seasonal_naive": round(float(r["mape_seasonal_naive"]), 3),
+            "mase_lgbm": round(float(r["mase_lgbm"]), 3),
+            "coverage_80": round(float(r["coverage_80_lgbm"]), 1),
+        }
+    switch = pd.Timestamp(settings.portal_switch_date)
+    metrics["folds_after_portal_switch"] = {
+        h: sum(f.cutoff >= switch for f in result.folds if f.horizon == h) for h in feats
+    }
+    if not ctx.dry_run:
+        version = session.parent_id if session else None
+        rows = model_metrics_rows(result.predictions, version)
+        metrics["model_metrics_rows"] = db.insert_model_metrics(
+            rows, ctx.run_id, "backtest", ctx.engine or db.get_engine()
+        )
+        if session and session.url:
+            metrics["mlflow_run"] = session.url
+    return StepResult("backtest", metrics=metrics)
+
+
 STEPS: dict[str, Callable[[RunContext], StepResult]] = {
     "ingest": run_ingest,
     "validate": run_validate,
     "weather": run_weather,
     "clean": run_clean,
+    "features": run_features,
+    "train": run_train,
+    "backtest": run_backtest,
 }
+# `--steps all` = the daily data pipeline. Model steps are run explicitly (Phase 3 adds
+# them to the daily workflow together with the promotion gate).
+DAILY_STEPS = ["ingest", "validate", "weather", "clean"]
 ALL_STEPS = list(STEPS)
 
 
@@ -254,6 +377,12 @@ def _check_db_budget(size_mb: float | None) -> None:
     )
 
 
+def _end_mlflow(ctx: RunContext, status: str) -> None:
+    session = ctx.artifacts.get("mlflow")
+    if session is not None:
+        session.end(status)
+
+
 def run_pipeline(steps: list[str], ctx: RunContext) -> list[StepResult]:
     unknown = [s for s in steps if s not in STEPS]
     if unknown:
@@ -281,13 +410,14 @@ def run_pipeline(steps: list[str], ctx: RunContext) -> list[StepResult]:
             log.info("step finished", extra={"step": current, **result.metrics})
     except Exception as exc:
         log.exception("step failed", extra={"step": current})
+        _end_mlflow(ctx, "FAILED")
         error = f"{current}: {type(exc).__name__}: {exc}"
         if ctx.run_id is not None:
             db.finish_run(
                 ctx.run_id,
                 "failed",
                 error=error + "\n" + traceback.format_exc(limit=5),
-                details={r.step: r.metrics for r in results},
+                details=_run_details(ctx, results),
                 engine=ctx.engine,
             )
         send_admin_message(
@@ -295,6 +425,7 @@ def run_pipeline(steps: list[str], ctx: RunContext) -> list[StepResult]:
             f"run_id={ctx.run_id} date={ctx.run_date} step={current}\n{error}"
         )
         raise
+    _end_mlflow(ctx, "FINISHED")
     if ctx.run_id is not None:
         details = _run_details(ctx, results)
         db.finish_run(ctx.run_id, "success", details=details, engine=ctx.engine)
@@ -306,7 +437,11 @@ def run_pipeline(steps: list[str], ctx: RunContext) -> list[StepResult]:
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     p = argparse.ArgumentParser(prog="cropcast.pipeline", description=__doc__.split("\n\n")[0])
-    p.add_argument("--steps", default="ingest,validate", help=f"comma list of {ALL_STEPS} or 'all'")
+    p.add_argument(
+        "--steps",
+        default="ingest,validate",
+        help=f"comma list of {ALL_STEPS}; 'all' = {DAILY_STEPS}",
+    )
     p.add_argument(
         "--date", type=date.fromisoformat, default=None, help="run date (IST); default today"
     )
@@ -354,7 +489,7 @@ def main(argv: list[str] | None = None) -> int:
     args = parse_args(argv)
     run_date: date = args.date or today_ist()
     steps = (
-        ALL_STEPS
+        DAILY_STEPS
         if args.steps.strip() == "all"
         else [s.strip() for s in args.steps.split(",") if s.strip()]
     )
