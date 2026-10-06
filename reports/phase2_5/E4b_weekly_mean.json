@@ -1,0 +1,22 @@
+{
+ "name": "E4b_weekly_mean",
+ "description": "Weekly mean price (Mon-Sun, >=2 obs), horizons 1-4 weeks, LGBM (L1, log-change) vs naive weekly (last weekly mean); 52 folds x 2 origin-weeks",
+ "params": {
+  "min_obs_per_week": 2
+ },
+ "headline": {
+  "mape_lgbm_1w": 3.835150926087603,
+  "mape_lgbm_2w": 5.760858007520172,
+  "mape_lgbm_3w": 7.174771819077653,
+  "mape_lgbm_4w": 8.260205130179669,
+  "mape_naive_1w": 3.7944797112545485,
+  "mape_naive_2w": 5.647430478032578,
+  "mape_naive_3w": 7.012346433858796,
+  "mape_naive_4w": 8.123910899395797,
+  "dm_p_1w": 0.07516080741063308,
+  "dm_p_2w": 0.10199652133967778,
+  "dm_p_3w": 0.07013156083577153,
+  "dm_p_4w": 0.3457318329995689
+ },
+ "verdict": "no win"
+}
