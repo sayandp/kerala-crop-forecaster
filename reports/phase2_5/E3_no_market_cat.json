@@ -1,0 +1,15 @@
+{
+ "name": "E3_no_market_cat",
+ "description": "E0 without market/variety categoricals (commodity pooling + series-relative features)",
+ "params": {
+  "features": 32,
+  "dropped": "market,variety"
+ },
+ "headline": {
+  "mape_lgbm": 5.1084235073018,
+  "mape_naive": 5.108674325754814,
+  "rel_improvement_pct": 0.004909658299212527,
+  "dm_p": 0.8998574290904121
+ },
+ "verdict": "no win"
+}
