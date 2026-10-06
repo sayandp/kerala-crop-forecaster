@@ -1,0 +1,15 @@
+{
+ "name": "E5_combination",
+ "description": "Per-series weight w in naive + w*(LGBM - naive), w fit on earlier folds only (expanding, >= 6 folds), evaluated on folds 13-52",
+ "params": {
+  "grid": "0..1 step 0.1",
+  "burn_in_folds": 12
+ },
+ "headline": {
+  "mape_combo": 5.337646805931526,
+  "mape_naive": 5.346016018453209,
+  "rel_improvement_pct": 0.15655045725254668,
+  "dm_p": 0.9134360973298432
+ },
+ "verdict": "no win"
+}
