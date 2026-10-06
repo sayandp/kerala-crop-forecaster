@@ -1,0 +1,17 @@
+{
+  "run_date": "2026-10-06",
+  "finished_at": "2026-10-06T21:57:38+05:30",
+  "status": "success",
+  "run_id": 8,
+  "steps": [
+    "ingest",
+    "validate",
+    "weather"
+  ],
+  "dry_run": false,
+  "db_size_mb": 196.5,
+  "rows_upserted": 1010,
+  "rows_new": 5,
+  "git_sha": "6172e1cfa9955b8aa99d2e666fd6ed787b32c462",
+  "run_url": "https://github.com/sayandp/kerala-crop-forecaster/actions/runs/37495762651"
+}
