@@ -181,6 +181,13 @@ Rules:
 - Don't store raw API payloads in Postgres; they live in `data/cache/` and the run artifact.
 - **Telegram webhook:** dedupe on `update_id` (Telegram retries when a cold-starting Render instance is slow) so a retried update is never processed twice.
 
+## Telegram rollout (staged)
+
+- **Stage 1 — end of Phase 3:** one public Telegram **channel per crop**; the daily job posts the
+  forecast summary after batch predict (plain Bot API `sendMessage`, no webhook, no subscribers table).
+- **Stage 2 — Phase 5:** the interactive bot (`/subscribe`, `/price`, `/lang`, threshold alerts) via
+  the Render webhook described under "Telegram bot".
+
 ## Build order / status
 
 - [x] 1. Daily ingest cron live (start early — history accumulates) + backfill + EDA
