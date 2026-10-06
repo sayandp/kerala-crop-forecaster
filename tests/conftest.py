@@ -17,6 +17,21 @@ from cropcast.config import settings
 FIXTURES = Path(__file__).parent / "fixtures"
 
 
+@pytest.fixture(autouse=True)
+def _never_touch_real_databases(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
+    """Tests must never reach the production DB (.env's DATABASE_URL may be Neon).
+
+    Point settings.database_url at the throwaway test DB (or an unreachable dummy) and
+    reset the cached engine, so any code path that forgets to pass an engine is safe.
+    """
+    safe = settings.test_database_url or "postgresql+psycopg://nobody@127.0.0.1:1/none"
+    monkeypatch.setattr(settings, "database_url", safe)
+    monkeypatch.setattr(settings, "mlflow_tracking_uri", None)  # never log tests to DagsHub
+    db.get_engine.cache_clear()
+    yield
+    db.get_engine.cache_clear()
+
+
 def load_fixture(name: str) -> Any:
     return json.loads((FIXTURES / name).read_text(encoding="utf-8"))
 

@@ -43,7 +43,7 @@ def test_too_many_rejects_fails_the_run(monkeypatch: pytest.MonkeyPatch) -> None
 def test_unknown_step_rejected() -> None:
     with pytest.raises(ValueError, match="unknown steps"):
         pipeline.run_pipeline(
-            ["train"], pipeline.RunContext(run_date=date(2026, 10, 3), dry_run=True)
+            ["no_such_step"], pipeline.RunContext(run_date=date(2026, 10, 3), dry_run=True)
         )
 
 
