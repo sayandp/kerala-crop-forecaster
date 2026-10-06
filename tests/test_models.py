@@ -171,3 +171,27 @@ def test_model_metrics_rows_carry_naive_value(backtest7: pd.DataFrame) -> None:
 def test_model_quality_lgbm_h7_beats_naive(backtest7: pd.DataFrame) -> None:
     t = metrics_table(backtest7, ["horizon"]).set_index("model")
     assert t.loc["lgbm", "mape"] < t.loc["naive", "mape"]
+
+
+def test_mase_ignores_series_with_flat_history() -> None:
+    p = pd.DataFrame(
+        {
+            "commodity": "pepper",
+            "market": ["A", "A", "B", "B"],
+            "variety": "Other",
+            "date": pd.to_datetime(["2026-01-01", "2026-01-02"] * 2),
+            "modal_price": [100.0, 100.0, 100.0, 110.0],  # A is flat -> undefined scale
+        }
+    )
+    s = mase_scales(p, pd.Timestamp("2026-01-31"))
+    assert np.isnan(s.loc[("pepper", "A", "Other")]) and s.loc[("pepper", "B", "Other")] == 10
+    df = pd.DataFrame(
+        {
+            "actual": [100.0, 120.0],
+            "pred": [101.0, 110.0],
+            "p10": np.nan,
+            "p90": np.nan,
+            "mase_scale": [np.nan, 10.0],
+        }
+    )
+    assert summarize(df)["mase"] == pytest.approx(1.0)  # only series B counts
