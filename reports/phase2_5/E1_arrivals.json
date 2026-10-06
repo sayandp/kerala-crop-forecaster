@@ -1,0 +1,15 @@
+{
+ "name": "E1_arrivals",
+ "description": "E0 + arrivals: own lag 1/7, ratio to 28-day mean; Kerala commodity total lag 1, ratio",
+ "params": {
+  "features": 39,
+  "coverage": "{\"arr_lag_1\": 0.986, \"arr_lag_7\": 0.984, \"arr_ratio_28\": 0.985, \"kerala_arr_lag_1\": 1.0, \"kerala_arr_ratio_28\": 1.0}"
+ },
+ "headline": {
+  "mape_lgbm": 5.119313258990143,
+  "mape_naive": 5.108674325754814,
+  "rel_improvement_pct": -0.20825232843075803,
+  "dm_p": 0.8415861449342747
+ },
+ "verdict": "no win"
+}
