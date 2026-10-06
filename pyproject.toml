@@ -16,6 +16,11 @@ dependencies = [
     "pyyaml>=6.0",
     "python-dotenv>=1.0",
     "pyarrow>=16",
+    "mlflow>=3.16.1",
+    "lightgbm>=4.7.0",
+    "scikit-learn>=1.9.1",
+    "optuna>=5.0.0",
+    "matplotlib>=3.11.2",
 ]
 
 [dependency-groups]
@@ -25,7 +30,6 @@ dev = [
     "mypy>=1.10",
     "pandas-stubs>=2.2",
     "jupyter>=1.0",
-    "matplotlib>=3.8",
 ]
 
 [build-system]
