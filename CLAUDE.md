@@ -71,9 +71,14 @@ Never hardcode secrets. Never commit `.env`. Read env only via `cropcast.config.
 
 ## Data rules
 
-- **Sources:**
-  - data.gov.in "Current Daily Price of Various Commodities from Various Markets (Mandi)" API — returns **today only**; history is built by the daily pull. Keep the resource ID in config, not code.
-  - Agmarknet portal reports — one-time historical backfill (`scripts/backfill.py`).
+- **Sources (daily ingest order — `INGEST_SOURCES`, default `agmarknet,datagov`):**
+  1. **Agmarknet 2.0 report API** (`api.agmarknet.gov.in/v1`) — **primary**. Any date, same naming as the
+     backfill, and the daily run re-pulls the last 3 days (late market reports).
+  2. **data.gov.in** "Current Daily Price of Various Commodities from Various Markets (Mandi)" — **fallback**;
+     returns **today only**. Keep the resource ID in config, not code.
+  - If **both** fail (error or zero rows) the run fails → `pipeline_runs.status='failed'` + Telegram admin alert.
+  - Every row keeps its `source` (`agmarknet_v2`, `agmarknet` = data.gov.in, `file:<name>`).
+  - Agmarknet 2.0 date-wise report — one-time historical backfill from 2018 (`scripts/backfill.py`).
   - Rubber Board daily prices for rubber; Spices Board / Kochi for pepper (Agmarknet Kerala coverage is thin for these).
   - Open-Meteo for district rainfall/temperature.
 - Filter to `state == "Kerala"` at ingest. Normalize commodity/market/variety names via `ingest/mappings.py` (one canonical name per entity).

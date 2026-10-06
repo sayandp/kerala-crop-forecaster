@@ -5,6 +5,7 @@ from __future__ import annotations
 from datetime import date
 
 import pandas as pd
+import pytest
 
 from cropcast.ingest.agmarknet import (
     STANDARD_COLUMNS,
@@ -111,3 +112,16 @@ def test_frozen_sample_prices_fixture() -> None:
     assert (df["date"].max() - df["date"].min()).days >= 700
     assert not df.duplicated(["date", "market", "commodity", "variety"]).any()
     assert (df["modal_price"] > 0).all()
+
+
+def test_all_sources_failing_raises(monkeypatch: pytest.MonkeyPatch) -> None:
+    from cropcast.ingest import agmarknet
+
+    def down(*_a: object, **_k: object) -> dict[str, object]:
+        raise RuntimeError("portal down")
+
+    monkeypatch.setattr(agmarknet, "fetch_portal_daily", down)
+    monkeypatch.setattr(agmarknet.settings, "ingest_sources", ["agmarknet", "datagov"])
+    # data.gov.in only serves today: a past run date makes the fallback fail too.
+    with pytest.raises(RuntimeError, match="all ingest sources failed"):
+        agmarknet.fetch_kerala_prices(date(2026, 1, 1), lookback_days=0)
