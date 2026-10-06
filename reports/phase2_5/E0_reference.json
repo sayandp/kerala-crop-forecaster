@@ -1,0 +1,15 @@
+{
+ "name": "E0_reference",
+ "description": "Phase-2 LightGBM (all Phase-2 features incl. market/variety categoricals), 20 series",
+ "params": {
+  "features": 34,
+  "series": 20
+ },
+ "headline": {
+  "mape_lgbm": 5.125024881421485,
+  "mape_naive": 5.108674325754814,
+  "rel_improvement_pct": -0.320054766150224,
+  "dm_p": 0.7501390434216101
+ },
+ "verdict": "no win"
+}

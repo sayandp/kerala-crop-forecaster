@@ -164,5 +164,5 @@ def log_experiment(
                 t.to_csv(p, index=False)
                 mlflow.log_artifact(str(p))
         url = run_url(run)
-    log.info("experiment logged", extra={"name": name, "verdict": verdict, "url": url})
+    log.info("experiment logged", extra={"experiment": name, "verdict": verdict, "url": url})
     return url
