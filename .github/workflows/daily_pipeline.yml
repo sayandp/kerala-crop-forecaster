@@ -2,7 +2,7 @@ name: daily-pipeline
 
 on:
   schedule:
-    - cron: "0 14 * * *"  # 14:00 UTC = 19:30 IST
+    - cron: "17 14 * * *"  # 14:17 UTC = 19:47 IST (off the hour: GitHub delays on-the-hour crons)
   workflow_dispatch:
     inputs:
       date:

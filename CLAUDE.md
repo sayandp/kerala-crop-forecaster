@@ -8,7 +8,7 @@ Self-retraining MLOps system that forecasts daily mandi (modal) prices for Keral
 
 ## Architecture (one-line summary)
 
-GitHub Actions cron (daily 19:30 IST) → ingest → validate → features → train challenger → backtest vs baselines → promotion gate (MLflow registry) → batch predict with `@champion` → Postgres → served by FastAPI / Streamlit / Telegram bot. Evidently monitors drift; live MAPE is computed as actuals arrive.
+GitHub Actions cron (daily 19:47 IST) → ingest → validate → features → train challenger → backtest vs baselines → promotion gate (MLflow registry) → batch predict with `@champion` → Postgres → served by FastAPI / Streamlit / Telegram bot. Evidently monitors drift; live MAPE is computed as actuals arrive.
 
 **Serving is batch, not real-time.** Forecasts are precomputed nightly and read from Postgres. Do not add online inference.
 
@@ -150,7 +150,7 @@ Never hardcode secrets. Never commit `.env`. Read env only via `cropcast.config.
 ## CI/CD
 
 - `ci.yml` (PR): ruff, mypy, pytest, docker build.
-- `daily_pipeline.yml`: cron `0 14 * * *` (UTC = 19:30 IST) + `workflow_dispatch`; uploads `reports/` artifact.
+- `daily_pipeline.yml`: cron `17 14 * * *` (UTC = 19:47 IST; off the hour because GitHub delays on-the-hour crons) + `workflow_dispatch`; uploads `reports/` artifact.
 - `deploy.yml` (push to main): build → push GHCR → Render deploy hook.
 
 ## Don'ts
