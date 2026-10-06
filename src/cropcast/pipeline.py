@@ -291,6 +291,9 @@ def run_backtest(ctx: RunContext) -> StepResult:
     for name, t in tables.items():
         t.to_csv(out_dir / f"{name}.csv", index=False)
     result.predictions.to_parquet(out_dir / "predictions.parquet", index=False)
+    pd.DataFrame(result.importances).rename(columns=lambda h: f"gain_h{h}").to_csv(
+        out_dir / "feature_importance.csv", index_label="feature"
+    )  # latest fold's p50 model per horizon
     ctx.artifacts["backtest"] = result
     metrics: dict[str, Any] = {"report_dir": str(out_dir)}
     for r in tables["by_horizon"].to_dict("records"):
