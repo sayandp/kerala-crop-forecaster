@@ -1,0 +1,18 @@
+{
+ "name": "E4a_move_classification",
+ "description": "h=7 move classes up(>+3%)/down(<-3%)/flat; LGBM multiclass (balanced) vs always-flat and 7-day-trend persistence; DM on 0/1 misclassification loss",
+ "params": {
+  "threshold": 0.03
+ },
+ "headline": {
+  "macro_f1_lgbm": 0.5197563377727854,
+  "macro_f1_flat": 0.24037257933878212,
+  "macro_f1_trend": 0.4102324526184718,
+  "dm_p_vs_flat": 0.885967501334846,
+  "dm_p_vs_trend": 0.0001295037644438876,
+  "balanced_err_lgbm": 46.16,
+  "balanced_err_flat": 66.67,
+  "balanced_err_trend": 58.91
+ },
+ "verdict": "PARTIAL WIN: macro-F1 beats both baselines (0.52 vs flat 0.24, trend 0.41). Pre-agreed DM on 0/1 loss: significant vs trend (p=1e-4) but NOT vs always-flat (p=0.89; accuracy 56.5 vs 56.4 %), so the strict rule is not met. Supplementary DM on class-balanced 0/1 loss (consistent with macro-F1): significant vs both overall and for coconut, pepper, rubber, tapioca; banana not vs trend (p=0.23)."
+}
