@@ -64,6 +64,16 @@ CREATE TABLE IF NOT EXISTS prices_clean (
 );
 
 -- ---------------------------------------------------------------------------
+-- Archive of old prices_raw rows (GitHub Release assets; see migration 005)
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS archive_log (
+    release_tag  TEXT        PRIMARY KEY,   -- GitHub Release, e.g. data-archive-2026-10-07
+    cutoff_date  DATE        NOT NULL,      -- rows dated < cutoff_date were archived
+    rows         INTEGER     NOT NULL,
+    archived_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- ---------------------------------------------------------------------------
 -- Quarantined rows that failed the data contract
 -- ---------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS prices_rejected (

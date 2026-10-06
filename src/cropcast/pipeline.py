@@ -27,6 +27,7 @@ from sqlalchemy import Engine, text
 
 from cropcast import db
 from cropcast.alerts.admin import send_admin_message
+from cropcast.archive import TAG_PREFIX, archive_prices_raw, load_archive
 from cropcast.clean.aliases import evaluate_candidates, load_candidates
 from cropcast.clean.build import build_clean, eligible_duplicates
 from cropcast.config import PROJECT_ROOT, settings
@@ -167,8 +168,17 @@ def run_clean(ctx: RunContext) -> StepResult:
     if ctx.full or aliases.empty:
         sw = settings.portal_switch_date
         w = timedelta(days=settings.alias_guard_window_days)
+        window = db.read_prices_raw(sw - w, sw + w - timedelta(days=1), engine)
+        if ctx.full or window.empty:
+            archived = load_archive(engine)
+            if len(archived):
+                adates = pd.to_datetime(archived["date"])
+                in_win = archived[
+                    (adates >= pd.Timestamp(sw - w)) & (adates < pd.Timestamp(sw + w))
+                ]
+                window = pd.concat([in_win.reindex(columns=window.columns), window])
         accepted, decisions = evaluate_candidates(
-            db.read_prices_raw(sw - w, sw + w - timedelta(days=1), engine),
+            window,
             load_candidates(),
             sw,
             settings.alias_guard_tolerance,
@@ -197,6 +207,15 @@ def run_clean(ctx: RunContext) -> StepResult:
         metrics["aliases_accepted"] = len(accepted)
 
     raw = db.read_prices_raw(start, None, engine)
+    if ctx.full:
+        # prices_raw in the DB only keeps ~90 days: a full rebuild needs the archive too.
+        archived = load_archive(engine)
+        if len(archived):
+            archived = archived.reindex(columns=raw.columns)
+            raw = pd.concat([archived, raw], ignore_index=True).drop_duplicates(
+                subset=["date", "market", "commodity", "variety"], keep="last"
+            )
+        metrics["archived_rows_read"] = len(archived)
     duplicates = eligible_duplicates(db.read_duplicate_rejects(start, engine))
     clean = build_clean(raw, duplicates, aliases)
     metrics.update(
@@ -320,11 +339,23 @@ def run_backtest(ctx: RunContext) -> StepResult:
     return StepResult("backtest", metrics=metrics)
 
 
+def run_archive(ctx: RunContext) -> StepResult:
+    """Monthly: prices_raw rows older than archive_after_days -> GitHub Release, then delete."""
+    engine = ctx.engine or db.get_engine()
+    cutoff = ctx.run_date - timedelta(days=settings.archive_after_days)
+    result = archive_prices_raw(engine, cutoff, f"{TAG_PREFIX}{ctx.run_date}", dry_run=ctx.dry_run)
+    return StepResult(
+        "archive",
+        metrics={"cutoff": str(cutoff), "rows": result.rows, "release": result.tag},
+    )
+
+
 STEPS: dict[str, Callable[[RunContext], StepResult]] = {
     "ingest": run_ingest,
     "validate": run_validate,
     "weather": run_weather,
     "clean": run_clean,
+    "archive": run_archive,
     "features": run_features,
     "train": run_train,
     "backtest": run_backtest,

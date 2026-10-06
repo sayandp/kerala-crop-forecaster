@@ -88,7 +88,10 @@ def engine() -> Iterator[Engine]:
     db.init_db(eng)
     with eng.begin() as conn:
         conn.execute(
-            text("TRUNCATE prices_raw, prices_rejected, weather_daily, pipeline_runs CASCADE")
+            text(
+                "TRUNCATE prices_raw, prices_rejected, weather_daily, pipeline_runs, "
+                "archive_log CASCADE"
+            )
         )
     yield eng
     eng.dispose()

@@ -66,6 +66,9 @@ class Settings(BaseSettings):
     # Re-pull this many days before the run date to catch late market reports.
     ingest_lookback_days: int = 3
 
+    # --- Archive: prices_raw keeps this many days in the DB (older -> GitHub Release) ---
+    archive_after_days: int = 90
+
     # --- Clean layer (prices_clean) ---
     # Agmarknet 2.0 cut-over: old variety labels end 2025-11-06, new ones start here.
     portal_switch_date: date = date(2025, 11, 7)

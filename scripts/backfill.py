@@ -25,6 +25,7 @@ from pathlib import Path
 from typing import Any
 
 import pandas as pd
+from sqlalchemy import text
 
 from cropcast import db
 from cropcast.config import settings
@@ -64,9 +65,15 @@ def _save_state(state: dict[str, Any]) -> None:
     STATE_FILE.write_text(json.dumps(state, indent=1), encoding="utf-8")
 
 
+ARCHIVE_CUTOFF: date | None = None  # set in main(): rows before it live in GitHub Releases
+
+
 def load_batch(raw: pd.DataFrame, run_id: int | None, dry_run: bool) -> dict[str, int]:
     """normalize -> validate -> quarantine -> upsert. Raises RejectRateExceeded."""
     prices = normalize(raw)
+    if ARCHIVE_CUTOFF is not None:
+        # Never re-insert archived dates into prices_raw (they would bloat the free-tier DB).
+        prices = prices[pd.to_datetime(prices["date"]) >= pd.Timestamp(ARCHIVE_CUTOFF)]
     good, rejected = validate(prices)
     if not dry_run:
         db.insert_rejected(rejected, run_id)
@@ -194,8 +201,16 @@ def main(argv: list[str] | None = None) -> int:
 
     setup_logging(log_file=settings.logs_dir / f"backfill_{today_ist().isoformat()}.jsonl")
     run_id = None
+    global ARCHIVE_CUTOFF
     if not args.dry_run:
         db.init_db()
+        with db.get_engine().connect() as conn:
+            ARCHIVE_CUTOFF = conn.execute(text("SELECT max(cutoff_date) FROM archive_log")).scalar()
+        if ARCHIVE_CUTOFF is not None:
+            log.warning(
+                "prices_raw is archived: skipping rows before",
+                extra={"cutoff": str(ARCHIVE_CUTOFF)},
+            )
         run_id = db.start_run(today_ist(), ["backfill"], False, git_sha())
 
     try:
