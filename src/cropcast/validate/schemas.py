@@ -1,7 +1,8 @@
 """Data contracts (Pandera). Bad rows are quarantined with a reason, never silently dropped.
 
 Contract for prices_raw (see CLAUDE.md "Data rules"):
-  * modal_price > 0 and min_price <= modal_price <= max_price
+  * modal_price > 0 always; min_price <= modal_price <= max_price for the bounds that are
+    present (min/max are NULL when a market reports only the modal price)
   * no future dates, no missing key fields
   * state == "Kerala", commodity is a canonical target crop
   * (date, market, commodity, variety) is unique — the first occurrence is kept,
@@ -44,15 +45,20 @@ def price_schema(today: date, commodities: list[str] | None = None) -> pa.DataFr
             "market": pa.Column(str, non_empty, nullable=False),
             "commodity": pa.Column(str, pa.Check.isin(allowed, error="unknown_commodity")),
             "variety": pa.Column(str, non_empty, nullable=False),
-            "min_price": pa.Column(float, pa.Check.ge(0, error="negative_min_price")),
-            "max_price": pa.Column(float, nullable=False),
+            # NULL bounds = the market reported only the modal price.
+            "min_price": pa.Column(
+                float, pa.Check.ge(0, error="negative_min_price"), nullable=True
+            ),
+            "max_price": pa.Column(float, nullable=True),
             "modal_price": pa.Column(float, pa.Check.gt(0, error="modal_price_not_positive")),
             "source": pa.Column(str, nullable=False),
         },
         checks=[
             pa.Check(
+                # A bound is only checked when present (both present => min <= modal <= max).
                 lambda d: (
-                    (d["min_price"] <= d["modal_price"]) & (d["modal_price"] <= d["max_price"])
+                    (d["min_price"].isna() | (d["min_price"] <= d["modal_price"]))
+                    & (d["max_price"].isna() | (d["modal_price"] <= d["max_price"]))
                 ),
                 error="min_le_modal_le_max",
             ),

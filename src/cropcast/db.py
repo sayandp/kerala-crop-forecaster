@@ -17,6 +17,7 @@ from cropcast.config import PROJECT_ROOT, settings
 log = logging.getLogger(__name__)
 
 SCHEMA_PATH = PROJECT_ROOT / "sql" / "schema.sql"
+MIGRATIONS_DIR = PROJECT_ROOT / "sql" / "migrations"
 
 PRICE_COLUMNS: tuple[str, ...] = (
     "date",
@@ -48,12 +49,19 @@ def get_engine(url: str | None = None) -> Engine:
 
 
 def init_db(engine: Engine | None = None) -> None:
-    """Apply sql/schema.sql (all statements are IF NOT EXISTS, so this is idempotent)."""
+    """Apply sql/schema.sql, then every sql/migrations/*.sql in order.
+
+    Everything is idempotent, so this runs on every pipeline run and brings any database
+    (local or Neon) up to date without a migrations bookkeeping table.
+    """
     engine = engine or get_engine()
-    ddl = SCHEMA_PATH.read_text(encoding="utf-8")
+    files = [SCHEMA_PATH, *sorted(MIGRATIONS_DIR.glob("*.sql"))]
     with engine.begin() as conn:
-        conn.exec_driver_sql(ddl)
-    log.info("schema applied", extra={"schema": str(SCHEMA_PATH)})
+        # Raw driver cursor with no parameters: '%' in SQL comments is not a placeholder.
+        cur = conn.connection.dbapi_connection.cursor()  # type: ignore[union-attr]
+        for f in files:
+            cur.execute(f.read_text(encoding="utf-8"))
+    log.info("schema applied", extra={"files": [f.name for f in files]})
 
 
 def _records(df: pd.DataFrame, columns: Sequence[str]) -> list[dict[str, Any]]:
@@ -101,6 +109,28 @@ def upsert_prices(df: pd.DataFrame, engine: Engine | None = None) -> int:
         conn.execute(_UPSERT_PRICES_SQL, recs)
     log.info("upserted prices", extra={"rows": len(recs)})
     return len(recs)
+
+
+def insert_prices_if_absent(df: pd.DataFrame, engine: Engine | None = None) -> int:
+    """Insert price rows whose key is not in prices_raw yet; never touches existing rows."""
+    if df.empty:
+        return 0
+    engine = engine or get_engine()
+    stmt = text(
+        """
+        INSERT INTO prices_raw (date, state, district, market, commodity, variety,
+                                min_price, max_price, modal_price, source)
+        VALUES (:date, :state, :district, :market, :commodity, :variety,
+                :min_price, :max_price, :modal_price, :source)
+        ON CONFLICT (date, market, commodity, variety) DO NOTHING
+        """
+    )
+    count = text("SELECT count(*) FROM prices_raw")
+    with engine.begin() as conn:
+        before = int(conn.execute(count).scalar_one())
+        conn.execute(stmt, _records(df, PRICE_COLUMNS))  # one batched executemany
+        after = int(conn.execute(count).scalar_one())
+    return after - before
 
 
 def insert_rejected(df: pd.DataFrame, run_id: int | None, engine: Engine | None = None) -> int:

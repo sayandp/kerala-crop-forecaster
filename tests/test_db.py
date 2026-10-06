@@ -104,3 +104,15 @@ def test_run_records_db_size_mb(engine: Engine, monkeypatch: pytest.MonkeyPatch)
         details = conn.execute(text("SELECT details FROM pipeline_runs")).scalar_one()
     assert details["db_size_mb"] > 0
     assert len(sent) == 1 and "MB" in sent[0]
+
+
+def test_null_bounds_round_trip_and_insert_if_absent(engine: Engine) -> None:
+    row = pd.DataFrame([price_row(min_price=None, max_price=None)])
+    assert db.insert_prices_if_absent(row, engine) == 1
+    # Never overwrites an existing key.
+    assert db.insert_prices_if_absent(pd.DataFrame([price_row(modal_price=5800.0)]), engine) == 0
+    with engine.connect() as conn:
+        lo, hi, modal = conn.execute(
+            text("SELECT min_price, max_price, modal_price FROM prices_raw")
+        ).one()
+    assert lo is None and hi is None and float(modal) == 5500.0

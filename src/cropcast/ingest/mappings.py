@@ -154,6 +154,17 @@ def market_districts() -> dict[str, str]:
     return out
 
 
+def apply_price_conventions(df: pd.DataFrame) -> pd.DataFrame:
+    """min = max = 0 with a positive modal means "only the modal was reported" -> NULL bounds."""
+    out = df.copy()
+    lo = pd.to_numeric(out["min_price"], errors="coerce")
+    hi = pd.to_numeric(out["max_price"], errors="coerce")
+    modal_only = (lo == 0) & (hi == 0)
+    out["min_price"] = lo.mask(modal_only)
+    out["max_price"] = hi.mask(modal_only)
+    return out
+
+
 def normalize(df: pd.DataFrame) -> pd.DataFrame:
     """Map raw source rows onto canonical names.
 
@@ -192,4 +203,4 @@ def normalize(df: pd.DataFrame) -> pd.DataFrame:
     missing = out.loc[out["district"].isna(), "market"].unique().tolist()
     if missing:
         log.warning("markets with unknown district", extra={"markets": missing})
-    return out.reset_index(drop=True)
+    return apply_price_conventions(out).reset_index(drop=True)

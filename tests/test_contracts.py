@@ -76,3 +76,45 @@ def test_reject_rate_gate() -> None:
     with pytest.raises(RejectRateExceeded):
         check_reject_rate(100, 21)
     assert check_reject_rate(0, 0) == 0.0
+
+
+# --- nullable min/max (migration 002) ------------------------------------------------
+
+
+def test_modal_only_rows_pass_with_null_bounds() -> None:
+    good, rejected = _validate([price_row(min_price=None, max_price=None)])
+    assert len(good) == 1 and rejected.empty
+
+
+@pytest.mark.parametrize(
+    ("override", "ok"),
+    [
+        ({"min_price": None, "max_price": 6000.0}, True),
+        ({"min_price": None, "max_price": 5000.0}, False),  # modal 5500 > max
+        ({"min_price": 5000.0, "max_price": None}, True),
+        ({"min_price": 6000.0, "max_price": None}, False),  # min > modal
+    ],
+)
+def test_bounds_checked_only_when_present(override: dict[str, Any], ok: bool) -> None:
+    good, rejected = _validate([price_row(**override)])
+    assert (len(good) == 1) is ok
+    if not ok:
+        assert "min_le_modal_le_max" in rejected.loc[0, "reason"]
+
+
+def test_modal_must_be_positive_even_without_bounds() -> None:
+    _, rejected = _validate([price_row(min_price=None, max_price=None, modal_price=0.0)])
+    assert "modal_price:modal_price_not_positive" in rejected.loc[0, "reason"]
+
+
+def test_zero_zero_bounds_become_null() -> None:
+    from cropcast.ingest.mappings import apply_price_conventions
+
+    df = pd.DataFrame(
+        [price_row(min_price=0.0, max_price=0.0), price_row(variety="x", min_price=0.0)]
+    )
+    out = apply_price_conventions(df)
+    assert out.loc[0, ["min_price", "max_price"]].isna().all()  # modal-only report
+    assert out.loc[1, "min_price"] == 0.0  # a lone 0 minimum is kept as reported
+    good, rejected = validate(out, today=TODAY)
+    assert len(good) == 2 and rejected.empty

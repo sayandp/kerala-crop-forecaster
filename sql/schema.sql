@@ -1,5 +1,7 @@
 -- Canonical database schema for cropcast.
 -- Every change here must also land as a numbered migration in sql/migrations/.
+-- init_db() applies this file and then every migration in order on every run, so all
+-- statements (here and in migrations) MUST be idempotent (IF NOT EXISTS, DROP NOT NULL, ...).
 -- Units: all prices are Rs./quintal. Rubber Board Rs./kg prices are converted (x100) at ingest.
 
 -- ---------------------------------------------------------------------------
@@ -12,14 +14,15 @@ CREATE TABLE IF NOT EXISTS prices_raw (
     market       TEXT           NOT NULL,
     commodity    TEXT           NOT NULL,
     variety      TEXT           NOT NULL,
-    min_price    NUMERIC(12, 2) NOT NULL,
-    max_price    NUMERIC(12, 2) NOT NULL,
+    min_price    NUMERIC(12, 2),            -- NULL: market reported only the modal price
+    max_price    NUMERIC(12, 2),            -- NULL: market reported only the modal price
     modal_price  NUMERIC(12, 2) NOT NULL,
     source       TEXT           NOT NULL,
     ingested_at  TIMESTAMPTZ    NOT NULL DEFAULT now(),
     updated_at   TIMESTAMPTZ    NOT NULL DEFAULT now(),
     PRIMARY KEY (date, market, commodity, variety),
     CHECK (modal_price > 0),
+    -- NULL-tolerant: a bound is only checked when it is present.
     CHECK (min_price <= modal_price AND modal_price <= max_price)
 );
 CREATE INDEX IF NOT EXISTS ix_prices_raw_series ON prices_raw (commodity, market, date);
