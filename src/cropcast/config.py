@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from datetime import date
 from functools import lru_cache
 from pathlib import Path
 from typing import Literal
@@ -64,6 +65,14 @@ class Settings(BaseSettings):
     ingest_sources: list[IngestSource] = Field(default_factory=lambda: list(DEFAULT_SOURCES))
     # Re-pull this many days before the run date to catch late market reports.
     ingest_lookback_days: int = 3
+
+    # --- Clean layer (prices_clean) ---
+    # Agmarknet 2.0 cut-over: old variety labels end 2025-11-06, new ones start here.
+    portal_switch_date: date = date(2025, 11, 7)
+    clean_window_days: int = 30  # incremental rebuild window; --full rebuilds everything
+    alias_guard_tolerance: float = 0.10  # |median(before)/median(after) - 1| must be <= this
+    alias_guard_window_days: int = 30
+    alias_guard_min_obs: int = 5  # per side, else the merge is rejected as "insufficient data"
 
     # --- Open-Meteo ---
     openmeteo_forecast_url: str = "https://api.open-meteo.com/v1/forecast"

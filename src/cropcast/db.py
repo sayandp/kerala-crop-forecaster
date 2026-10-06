@@ -249,3 +249,103 @@ def finish_run(
                 "details": json.dumps(details or {}, default=str),
             },
         )
+
+
+# --- clean layer ------------------------------------------------------------------
+
+
+def read_prices_raw(
+    start: date | None = None, end: date | None = None, engine: Engine | None = None
+) -> pd.DataFrame:
+    engine = engine or get_engine()
+    sql = (
+        "SELECT date, market, commodity, variety, min_price::float8 AS min_price, "
+        "max_price::float8 AS max_price, modal_price::float8 AS modal_price, source "
+        "FROM prices_raw WHERE date >= COALESCE(:s, DATE '1900-01-01') "
+        "AND date <= COALESCE(:e, DATE '2999-12-31')"
+    )
+    with engine.connect() as conn:
+        return pd.read_sql(text(sql), conn, params={"s": start, "e": end})
+
+
+def read_duplicate_rejects(start: date | None = None, engine: Engine | None = None) -> pd.DataFrame:
+    """Quarantined rows that were (at least) same-day duplicates; input to prices_clean."""
+    engine = engine or get_engine()
+    sql = (
+        f"SELECT {', '.join(PRICE_COLUMNS)}, reason FROM prices_rejected "
+        "WHERE reason LIKE :pat AND date >= COALESCE(:s, DATE '1900-01-01') ORDER BY id"
+    )
+    with engine.connect() as conn:
+        return pd.read_sql(text(sql), conn, params={"pat": "%duplicate_key%", "s": start})
+
+
+def read_variety_aliases(engine: Engine | None = None) -> pd.DataFrame:
+    engine = engine or get_engine()
+    with engine.connect() as conn:
+        return pd.read_sql(
+            text(
+                "SELECT commodity, market, raw_variety, canonical_variety, valid_from, "
+                "valid_to, guard_ratio FROM variety_aliases ORDER BY id"
+            ),
+            conn,
+        )
+
+
+def replace_variety_aliases(aliases: pd.DataFrame, engine: Engine | None = None) -> int:
+    engine = engine or get_engine()
+    cols = ("commodity", "market", "raw_variety", "canonical_variety", "valid_from", "valid_to")
+    stmt = text(
+        "INSERT INTO variety_aliases (commodity, market, raw_variety, canonical_variety, "
+        "valid_from, valid_to, guard_ratio) VALUES (:commodity, :market, :raw_variety, "
+        ":canonical_variety, :valid_from, :valid_to, :guard_ratio)"
+    )
+    with engine.begin() as conn:
+        conn.execute(text("DELETE FROM variety_aliases"))
+        if not aliases.empty:
+            conn.execute(stmt, _records_any(aliases, (*cols, "guard_ratio")))
+    return len(aliases)
+
+
+def replace_prices_clean(
+    clean: pd.DataFrame, start: date | None, engine: Engine | None = None
+) -> int:
+    """Replace prices_clean rows dated >= start (all rows when start is None)."""
+    engine = engine or get_engine()
+    cols = (
+        "commodity",
+        "market",
+        "variety",
+        "date",
+        "modal_price",
+        "min_price",
+        "max_price",
+        "n_reports",
+        "sources",
+    )
+    stmt = text(
+        "INSERT INTO prices_clean (commodity, market, variety, date, modal_price, min_price, "
+        "max_price, n_reports, sources) VALUES (:commodity, :market, :variety, :date, "
+        ":modal_price, :min_price, :max_price, :n_reports, :sources)"
+    )
+    with engine.begin() as conn:
+        if start is None:
+            conn.execute(text("TRUNCATE prices_clean"))
+        else:
+            conn.execute(text("DELETE FROM prices_clean WHERE date >= :s"), {"s": start})
+        if not clean.empty:
+            conn.execute(stmt, _records_any(clean, cols))
+    return len(clean)
+
+
+def _records_any(df: pd.DataFrame, columns: Sequence[str]) -> list[dict[str, Any]]:
+    """Like _records but converts numpy scalars (int64 etc.) to plain Python values."""
+    out = df.loc[:, list(columns)].astype(object)
+    out = out.where(pd.notna(out), None)
+    recs: list[dict[str, Any]] = out.to_dict(orient="records")  # type: ignore[assignment]
+    for r in recs:
+        for k, v in r.items():
+            if hasattr(v, "item"):
+                r[k] = v.item()
+            elif isinstance(v, pd.Timestamp):
+                r[k] = v.date()
+    return recs

@@ -12,7 +12,7 @@ on:
       steps:
         description: "Comma-separated steps"
         required: false
-        default: "ingest,validate,weather"
+        default: "ingest,validate,weather,clean"
 
 concurrency:
   group: daily-pipeline
@@ -47,7 +47,7 @@ jobs:
         id: pipeline
         env:
           RUN_DATE: ${{ inputs.date }}
-          RUN_STEPS: ${{ inputs.steps || 'ingest,validate,weather' }}
+          RUN_STEPS: ${{ inputs.steps || 'ingest,validate,weather,clean' }}
         run: |
           args=(--steps "$RUN_STEPS" --status-file status/last_run.json)
           if [ -n "$RUN_DATE" ]; then args+=(--date "$RUN_DATE"); fi

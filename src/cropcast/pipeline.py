@@ -27,6 +27,8 @@ from sqlalchemy import Engine, text
 
 from cropcast import db
 from cropcast.alerts.admin import send_admin_message
+from cropcast.clean.aliases import evaluate_candidates, load_candidates
+from cropcast.clean.build import build_clean, eligible_duplicates
 from cropcast.config import PROJECT_ROOT, settings
 from cropcast.ingest.agmarknet import IST, fetch_kerala_prices, today_ist
 from cropcast.ingest.mappings import normalize
@@ -42,6 +44,8 @@ class RunContext:
     run_date: date
     dry_run: bool = False
     lookback_days: int = field(default_factory=lambda: settings.ingest_lookback_days)
+    full: bool = False  # clean: re-evaluate aliases + rebuild prices_clean from scratch
+    tune: bool = False  # train: Optuna search before fitting
     run_id: int | None = None
     engine: Engine | None = None
     # Hand-off between steps within one process (e.g. ingest -> validate).
@@ -141,10 +145,66 @@ def run_weather(ctx: RunContext) -> StepResult:
     return StepResult("weather", metrics={"rows": len(weather)})
 
 
+def run_clean(ctx: RunContext) -> StepResult:
+    """prices_raw (+ quarantined same-day duplicates) -> aliases -> aggregated prices_clean."""
+    engine = ctx.engine or db.get_engine()
+    start = None if ctx.full else ctx.run_date - timedelta(days=settings.clean_window_days)
+    metrics: dict[str, Any] = {"mode": "full" if ctx.full else f"since {start}"}
+
+    aliases = db.read_variety_aliases(engine)
+    if ctx.full or aliases.empty:
+        sw = settings.portal_switch_date
+        w = timedelta(days=settings.alias_guard_window_days)
+        accepted, decisions = evaluate_candidates(
+            db.read_prices_raw(sw - w, sw + w - timedelta(days=1), engine),
+            load_candidates(),
+            sw,
+            settings.alias_guard_tolerance,
+            settings.alias_guard_window_days,
+            settings.alias_guard_min_obs,
+        )
+        for d in decisions.to_dict("records"):
+            log.info(
+                "alias decision",
+                extra={
+                    "commodity": d["commodity"],
+                    "market": d["market"],
+                    "rename": f"{d['raw_variety']} -> {d['canonical_variety']}",
+                    "n_before": d["n_before"],
+                    "n_after": d["n_after"],
+                    "ratio": None if pd.isna(d["ratio"]) else round(d["ratio"], 4),
+                    "decision": d["decision"],
+                },
+            )
+        if not ctx.dry_run:
+            settings.reports_dir.mkdir(parents=True, exist_ok=True)
+            decisions.to_csv(settings.reports_dir / "alias_decisions.csv", index=False)
+            db.replace_variety_aliases(accepted, engine)
+        aliases = accepted
+        metrics["alias_candidates"] = len(decisions)
+        metrics["aliases_accepted"] = len(accepted)
+
+    raw = db.read_prices_raw(start, None, engine)
+    duplicates = eligible_duplicates(db.read_duplicate_rejects(start, engine))
+    clean = build_clean(raw, duplicates, aliases)
+    metrics.update(
+        {
+            "raw_rows": len(raw),
+            "duplicate_reports": len(duplicates),
+            "clean_rows": len(clean),
+            "multi_report_days": int((clean["n_reports"] > 1).sum()) if len(clean) else 0,
+        }
+    )
+    if not ctx.dry_run:
+        db.replace_prices_clean(clean, start, engine)
+    return StepResult("clean", metrics=metrics)
+
+
 STEPS: dict[str, Callable[[RunContext], StepResult]] = {
     "ingest": run_ingest,
     "validate": run_validate,
     "weather": run_weather,
+    "clean": run_clean,
 }
 ALL_STEPS = list(STEPS)
 
@@ -260,6 +320,10 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         help="also re-pull this many days before --date (late market reports)",
     )
     p.add_argument(
+        "--full", action="store_true", help="clean: re-evaluate aliases and rebuild everything"
+    )
+    p.add_argument("--tune", action="store_true", help="train: Optuna search (h=7, folds 1-3)")
+    p.add_argument(
         "--status-file",
         type=Path,
         default=None,
@@ -298,7 +362,13 @@ def main(argv: list[str] | None = None) -> int:
         settings.logs_dir / f"pipeline_{run_date.isoformat()}_{datetime.now(IST):%H%M%S}.jsonl"
     )
     setup_logging(log_file=None if args.dry_run else log_file)
-    ctx = RunContext(run_date=run_date, dry_run=args.dry_run, lookback_days=args.lookback)
+    ctx = RunContext(
+        run_date=run_date,
+        dry_run=args.dry_run,
+        lookback_days=args.lookback,
+        full=args.full,
+        tune=args.tune,
+    )
     status = "failed"
     try:
         run_pipeline(steps, ctx)

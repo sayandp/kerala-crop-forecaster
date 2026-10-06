@@ -30,7 +30,9 @@ class RejectRateExceeded(RuntimeError):
     """Raised when too large a share of a batch fails the contract."""
 
 
-def price_schema(today: date, commodities: list[str] | None = None) -> pa.DataFrameSchema:
+def price_schema(
+    today: date, commodities: list[str] | None = None, check_unique: bool = True
+) -> pa.DataFrameSchema:
     allowed = commodities if commodities is not None else settings.target_commodities
     non_empty = pa.Check.str_length(min_value=1)
     return pa.DataFrameSchema(
@@ -63,7 +65,7 @@ def price_schema(today: date, commodities: list[str] | None = None) -> pa.DataFr
                 error="min_le_modal_le_max",
             ),
         ],
-        unique=KEY,
+        unique=KEY if check_unique else None,
         report_duplicates="exclude_first",
         strict=False,
         coerce=False,
@@ -94,13 +96,16 @@ def _reason(row: pd.Series) -> str:
 
 
 def validate(
-    df: pd.DataFrame, today: date | None = None, commodities: list[str] | None = None
+    df: pd.DataFrame,
+    today: date | None = None,
+    commodities: list[str] | None = None,
+    check_unique: bool = True,
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
     """Split a normalized batch into (good_df, rejected_df). rejected_df has a `reason` column."""
     from cropcast.ingest.agmarknet import today_ist
 
     data = _prepare(df)
-    schema = price_schema(today or today_ist(), commodities)
+    schema = price_schema(today or today_ist(), commodities, check_unique)
     try:
         schema.validate(data, lazy=True)
         good = data

@@ -1,0 +1,28 @@
+# Candidate variety renames -> seeds the `variety_aliases` table (see cropcast.clean.aliases).
+#
+# At the Agmarknet 2.0 cut-over (settings.portal_switch_date = 2025-11-07) some markets
+# relabelled varieties: the old label stops on ~2025-11-06 and a new label starts. A candidate
+# here is only a *hypothesis*; it is applied per market, and only where
+#   * the raw variety stopped reporting at the switch and the canonical one started after it
+#     (both labels living on after the switch = two products, never merged), and
+#   * |median(raw, 30 d before) / median(canonical, 30 d after) - 1| <= alias_guard_tolerance (10 %)
+#   * each side has >= alias_guard_min_obs observations.
+# Accepted merges relabel raw rows dated before the switch (valid_to = switch - 1 day) to the
+# canonical (post-switch) label, so daily data never needs aliasing. Every decision is logged.
+#
+# Only semantically plausible renames belong here (found by scripts in the Phase 2 analysis);
+# pairs like banana Nendran -> Green can match on price by coincidence and are NOT listed.
+
+switch_renames:
+  - commodity: banana
+    raw_variety: Green Other    # generic green-banana label before the switch
+    canonical_variety: Green
+  - commodity: tapioca
+    raw_variety: Other
+    canonical_variety: Tapioca
+  - commodity: pepper
+    raw_variety: Other
+    canonical_variety: Ungarbled
+  - commodity: rubber
+    raw_variety: Other
+    canonical_variety: RSS-4
