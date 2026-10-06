@@ -162,6 +162,25 @@ Never hardcode secrets. Never commit `.env`. Read env only via `cropcast.config.
 - Don't scrape sites aggressively; respect rate limits, cache responses in `data/cache/`.
 - Don't touch `data/raw/` files after ingest — they're immutable.
 
+## Free-tier constraints
+
+The project must cost **₹0** to run. Every design choice has to fit these free tiers:
+
+| Service | Use | Limit to respect |
+|---|---|---|
+| GitHub Actions | CI + daily cron | Repo stays **public** (unlimited minutes). Scheduled workflows are disabled after 60 days without repo activity → the daily job commits `status/last_run.json`. |
+| Neon Postgres | source of truth | **0.5 GB** storage → keep the DB **< 400 MB** (196 MB after Phase 1 backfill). |
+| DagsHub | MLflow tracking + registry | Public repo; keep artifacts small (models, not datasets). |
+| Render | FastAPI + Telegram webhook | Free web service sleeps after idle; cold starts are fine for batch-serving. **No Render Postgres** (expires) — Neon only. |
+| Streamlit Community Cloud | dashboard | Public app, reads Neon via the read-only user. |
+
+Rules:
+- **DB budget:** < 400 MB total. Log `db_size_mb` on every pipeline run (`pipeline_runs.details`) and fail loudly / ping admin before the limit, not after.
+- **Features go to parquet** (artifacts / `data/`), never into Postgres tables.
+- **Prune `forecasts` older than 180 days** (live-accuracy history lives in `model_metrics`, which is small).
+- Don't store raw API payloads in Postgres; they live in `data/cache/` and the run artifact.
+- **Telegram webhook:** dedupe on `update_id` (Telegram retries when a cold-starting Render instance is slow) so a retried update is never processed twice.
+
 ## Build order / status
 
 - [x] 1. Daily ingest cron live (start early — history accumulates) + backfill + EDA
