@@ -97,7 +97,9 @@ Never hardcode secrets. Never commit `.env`. Read env only via `cropcast.config.
 - Filter to `state == "Kerala"` at ingest. Normalize commodity/market/variety names via `ingest/mappings.py` (one canonical name per entity).
 - `prices_raw` primary key is `(date, market, commodity, variety)`. **All writes are idempotent upserts** — re-running a day must never duplicate rows.
 - Pandera contract (fail the pipeline, don't silently drop): `modal_price > 0` always; `min_price <= modal_price <= max_price` for the bounds that are present (min/max are **NULL** when a market reports only the modal price — published as min = max = 0, converted in `normalize()`; migration 002); no future dates, no duplicate keys. Log and quarantine bad rows to `prices_rejected`.
-- **`prices_raw` is never mutated.** Recovery of quarantined rows only *inserts* (`ON CONFLICT DO NOTHING`).
+- **`prices_raw` is never mutated** (except the two sanctioned operations below). Recovery of quarantined rows only *inserts* (`ON CONFLICT DO NOTHING`).
+- **Arrivals:** `arrivals_tonnes` (metric tonnes, nullable) is stored with every Agmarknet report (migration 004); `prices_clean` holds the day's sum. Backfilled 2018→ by exact match from cached responses (`scripts/backfill_arrivals.py`).
+- **Archive (free tier):** Neon `prices_raw` keeps only the last **90 days**. Older rows are archived to GitHub Releases `data-archive-<date>` (yearly parquet; downloaded back and verified by per-year row count + modal checksum **before** delete, then `VACUUM FULL`), recorded in `archive_log` (migration 005). Monthly `archive` step (daily workflow, scheduled run on the 1st). `prices_clean` keeps the full history in the DB; `clean --full` reads archived rows back from the releases; `backfill.py` never re-inserts archived dates. The local dev DB is not archived.
 - **Clean layer** (`clean` step, runs daily; migration 003):
   - `variety_aliases`: candidate renames in `ingest/variety_aliases.yaml`, accepted **per market** only if the
     raw label stops and the canonical label starts at the portal switch (>= 5 reports per side) and
@@ -114,7 +116,7 @@ Never hardcode secrets. Never commit `.env`. Read env only via `cropcast.config.
 
 ## Modeling rules
 
-- Modelled series: `config/series.yaml` (19 series from `notebooks/eda.ipynb` §9; ask before changing).
+- Modelled series: `config/series.yaml` (20 series: the 19 from `notebooks/eda.ipynb` §9 + rubber Kalpetta RSS-4 stitched by alias; ask before changing).
 - Training reads `prices_clean` **once** into `data/snapshots/prices_clean_<date>.parquet` (+ weather); features
   go to `data/features/*.parquet`. Never query the DB per fold; never store features in Postgres.
 - Target: `log1p(modal_price)` per (market, commodity, variety). Invert with `expm1` before scoring. LightGBM
@@ -129,7 +131,15 @@ Never hardcode secrets. Never commit `.env`. Read env only via `cropcast.config.
 - Metrics per series / commodity × horizon: MAPE, sMAPE, MASE, p10–p90 coverage. Always log naive (and seasonal-naive) next to every LGBM number. Aggregates → `model_metrics (split='backtest')`.
 - Fix seeds (`seed=42`) and log LightGBM params, feature list, series list, data date range and git SHA to MLflow on every run.
 - **MLflow:** `MLFLOW_TRACKING_URI` (DagsHub) via settings; fallback local `mlflow.db` + `./mlruns`. Experiment `cropcast-backtest`; one parent run per pipeline invocation, a nested child run per horizon.
-- **Phase 2 finding:** LightGBM ties but does **not** beat naive (h=7 MAPE 4.77 vs 4.71; 2-year diagnostic 5.28 vs 5.28). The quality gate test below is therefore a strict `xfail` — remove the marker once the model genuinely wins. Most likely missing signal: arrival volumes.
+- **Phase 2 finding:** LightGBM ties but does **not** beat naive (h=7 MAPE 4.77 vs 4.71; 2-year diagnostic 5.28 vs 5.28). The quality gate test below is therefore a strict `xfail` — remove the marker once the model genuinely wins.
+
+## Decision rule for new models / features (Phase 2.5, applies from now on)
+
+- Yardstick: the **52-fold walk-forward diagnostic at h = 7** (14-day folds, ≈ 2 years, p50), model and naive on identical rows (`scripts/signal_hunt.py`, `cropcast.experiments.harness`).
+- An approach **wins** only if it beats naive by **≥ 3 % relative MAPE AND** a **Diebold–Mariano** test (`cropcast.models.dm`: APE loss, per-date cross-series mean, Newey–West h−1, HLN correction) gives **p < 0.05** in its favour. Classification targets: macro-F1 must beat always-flat and trend persistence, plus DM p < 0.05 (pre-register the loss; a class-balanced 0/1 loss is the one consistent with macro-F1).
+- Report every experiment, including failures; per-crop wins need a multiple-comparison caveat.
+- **Phase 2.5 outcome** (`reports/phase2_5_signal_hunt.md`): nothing beats naive on price level — arrivals (E1), upstream TN/KA markets (E2), no-market pooling (E3), weekly means (E4b), naive/LGBM combination (E5) all tie or lose. The only signal: **direction of > 3 % moves at h = 7** (E4a classifier: macro-F1 0.52 vs 0.24 flat / 0.41 trend; significant under class-balanced DM for coconut, pepper, rubber, tapioca; strict 0/1-loss rule not met vs always-flat).
+- **Phase 3 plan from that:** champion = **naive** for every crop (p50), LightGBM p10–p90 band for uncertainty; challenger = **E4a move classifier in shadow** for coconut/pepper/rubber/tapioca (alerts become user-facing only after it meets the rule live); banana = naive only; the LGBM regressor stays a registered challenger under the existing gate.
 
 ## Registry & promotion
 
@@ -207,7 +217,7 @@ The project must cost **₹0** to run. Every design choice has to fit these free
 | Service | Use | Limit to respect |
 |---|---|---|
 | GitHub Actions | CI + daily cron | Repo stays **public** (unlimited minutes). Scheduled workflows are disabled after 60 days without repo activity → the daily job commits `status/last_run.json`. |
-| Neon Postgres | source of truth | **0.5 GB** storage → keep the DB **< 400 MB** (196 MB after Phase 1; **304 MB** after Phase 2 — `prices_clean` is 107 MB; growth ~0.3 MB/day). |
+| Neon Postgres | source of truth | **0.5 GB** storage → keep the DB **< 400 MB** (196 MB after Phase 1; 304 MB after Phase 2; **137 MB** after the Phase 2.5 archive — `prices_clean` 111 MB of it; `prices_raw` 90 days only). |
 | DagsHub | MLflow tracking + registry | Public repo; keep artifacts small (models, not datasets). |
 | Render | FastAPI + Telegram webhook | Free web service sleeps after idle; cold starts are fine for batch-serving. **No Render Postgres** (expires) — Neon only. |
 | Streamlit Community Cloud | dashboard | Public app, reads Neon via the read-only user. |
@@ -234,6 +244,8 @@ Rules:
 - [x] 2. Baselines, features, LightGBM, walk-forward backtest, MLflow logging
       (clean layer + aliases + nullable min/max; 19 series in `config/series.yaml`; report in
       `notebooks/02_backtest_report.ipynb`; LGBM ties naive — quality gate is a strict xfail)
+- [x] 2.5 Signal hunt (time-boxed): arrivals stored, prices_raw archive to GitHub Releases, E0–E5 vs the
+      decision rule — no price model beats naive; E4a direction classifier is the Phase 3 shadow challenger
 - [ ] 3. Registry + promotion gate + batch predict → Postgres
 - [ ] 4. FastAPI + Docker + deploy; Streamlit dashboard
 - [ ] 5. Evidently drift + live accuracy + Telegram bot

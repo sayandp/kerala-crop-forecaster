@@ -1,0 +1,163 @@
+{
+ "db_mb_before": 305.2,
+ "db_mb_after_archive": 134.5,
+ "db_mb_after_clean_rebuild": 148.9,
+ "db_mb_now": 137.1,
+ "tables": [
+  {
+   "table": "prices_clean",
+   "total_mb": "110.5234375000000000",
+   "heap_mb": "72.3593750000000000",
+   "index_mb": "38.1093750000000000",
+   "live_rows": 747337
+  },
+  {
+   "table": "prices_rejected",
+   "total_mb": "6.5468750000000000",
+   "heap_mb": "5.4375000000000000",
+   "index_mb": "1.1015625000000000",
+   "live_rows": 35636
+  },
+  {
+   "table": "prices_raw",
+   "total_mb": "6.0937500000000000",
+   "heap_mb": "3.6250000000000000",
+   "index_mb": "2.4609375000000000",
+   "live_rows": 28057
+  },
+  {
+   "table": "weather_daily",
+   "total_mb": "5.8984375000000000",
+   "heap_mb": "4.0546875000000000",
+   "index_mb": "1.8046875000000000",
+   "live_rows": 44828
+  },
+  {
+   "table": "pipeline_runs",
+   "total_mb": "0.07812500000000000000",
+   "heap_mb": "0.01562500000000000000",
+   "index_mb": "0.03125000000000000000",
+   "live_rows": 13
+  },
+  {
+   "table": "model_metrics",
+   "total_mb": "0.07812500000000000000",
+   "heap_mb": "0.03125000000000000000",
+   "index_mb": "0.01562500000000000000",
+   "live_rows": 234
+  },
+  {
+   "table": "variety_aliases",
+   "total_mb": "0.04687500000000000000",
+   "heap_mb": "0.00781250000000000000",
+   "index_mb": "0.03125000000000000000",
+   "live_rows": 19
+  },
+  {
+   "table": "archive_log",
+   "total_mb": "0.03125000000000000000",
+   "heap_mb": "0.00781250000000000000",
+   "index_mb": "0.01562500000000000000",
+   "live_rows": 1
+  },
+  {
+   "table": "forecasts",
+   "total_mb": "0.02343750000000000000",
+   "heap_mb": "0E-24",
+   "index_mb": "0.01562500000000000000",
+   "live_rows": 0
+  },
+  {
+   "table": "subscribers",
+   "total_mb": "0.01562500000000000000",
+   "heap_mb": "0E-24",
+   "index_mb": "0.00781250000000000000",
+   "live_rows": 0
+  }
+ ],
+ "indexes": [
+  {
+   "table": "prices_clean",
+   "index": "prices_clean_pkey",
+   "mb": "38.1093750000000000"
+  },
+  {
+   "table": "weather_daily",
+   "index": "weather_daily_pkey",
+   "mb": "1.8046875000000000"
+  },
+  {
+   "table": "prices_raw",
+   "index": "prices_raw_pkey",
+   "mb": "1.4843750000000000"
+  },
+  {
+   "table": "prices_raw",
+   "index": "ix_prices_raw_series",
+   "mb": "0.97656250000000000000"
+  },
+  {
+   "table": "prices_rejected",
+   "index": "prices_rejected_pkey",
+   "mb": "0.78125000000000000000"
+  },
+  {
+   "table": "prices_rejected",
+   "index": "ix_prices_rejected_date",
+   "mb": "0.32031250000000000000"
+  },
+  {
+   "table": "archive_log",
+   "index": "archive_log_pkey",
+   "mb": "0.01562500000000000000"
+  },
+  {
+   "table": "pipeline_runs",
+   "index": "pipeline_runs_pkey",
+   "mb": "0.01562500000000000000"
+  },
+  {
+   "table": "pipeline_runs",
+   "index": "ix_pipeline_runs_status",
+   "mb": "0.01562500000000000000"
+  },
+  {
+   "table": "model_metrics",
+   "index": "model_metrics_pkey",
+   "mb": "0.01562500000000000000"
+  },
+  {
+   "table": "variety_aliases",
+   "index": "variety_aliases_pkey",
+   "mb": "0.01562500000000000000"
+  },
+  {
+   "table": "variety_aliases",
+   "index": "variety_aliases_commodity_market_raw_variety_valid_from_val_key",
+   "mb": "0.01562500000000000000"
+  },
+  {
+   "table": "forecasts",
+   "index": "forecasts_pkey",
+   "mb": "0.00781250000000000000"
+  },
+  {
+   "table": "subscribers",
+   "index": "subscribers_pkey",
+   "mb": "0.00781250000000000000"
+  },
+  {
+   "table": "forecasts",
+   "index": "ix_forecasts_target",
+   "mb": "0.00781250000000000000"
+  }
+ ],
+ "archive": [
+  {
+   "release_tag": "data-archive-2026-10-07",
+   "cutoff_date": "2026-07-09",
+   "rows": 719276,
+   "archived_at": "2026-10-06 21:31:45.451436+00:00"
+  }
+ ]
+}

@@ -14,6 +14,7 @@ from __future__ import annotations
 import argparse
 import json
 import logging
+import math
 import sys
 from datetime import date
 
@@ -486,8 +487,153 @@ def cmd_e5(d: H.HuntData) -> None:
     print(weights.to_string(index=False))
 
 
-def write_report() -> None:  # filled in once all experiments have run
-    raise NotImplementedError
+REGRESSION = [
+    ("E0_reference", "E0 Phase-2 LGBM (reference)"),
+    ("E1_arrivals", "E1 + arrivals"),
+    ("E2_upstream", "E2 + upstream markets"),
+    ("E3_no_market_cat", "E3 no market categorical"),
+    ("E5_combination", "E5 naive/LGBM combination"),
+]
+
+
+def _fmt(v: object, nd: int = 2) -> str:
+    if isinstance(v, float):
+        if math.isnan(v):
+            return "-"
+        return f"{v:.{nd}f}" if abs(v) >= 1e-3 or v == 0 else f"{v:.0e}"
+    return str(v)
+
+
+def _md(df: pd.DataFrame, nd: int = 2) -> str:
+    cols = list(df.columns)
+    lines = ["| " + " | ".join(cols) + " |", "|" + "---|" * len(cols)]
+    for row in df.itertuples(index=False):
+        lines.append("| " + " | ".join(_fmt(v, nd) for v in row) + " |")
+    return "\n".join(lines)
+
+
+def write_report() -> None:
+    """reports/phase2_5_signal_hunt.md from the committed reports/phase2_5/* results."""
+    rd = H.results_dir()
+    summary, crop_rows = [], []
+    for name, label in REGRESSION:
+        if not (rd / f"{name}.json").exists():
+            continue
+        meta = json.loads((rd / f"{name}.json").read_text(encoding="utf-8"))
+        sc = pd.read_csv(rd / f"{name}_scores.csv")
+        model_col = next(c for c in sc.columns if c.startswith("mape_") and c != "mape_naive")
+        a = sc[sc.crop == "all"].iloc[0]
+        summary.append(
+            {
+                "experiment": label,
+                "MAPE": a[model_col],
+                "naive MAPE": a["mape_naive"],
+                "rel. vs naive %": a["rel_improvement_pct"],
+                "DM p": a["dm_p"],
+                "verdict": meta["verdict"],
+            }
+        )
+        for r in sc[sc.crop != "all"].itertuples(index=False):
+            crop_rows.append(
+                {
+                    "experiment": label.split(" ")[0],
+                    "crop": r.crop,
+                    "MAPE": getattr(r, model_col),
+                    "naive": r.mape_naive,
+                    "rel %": r.rel_improvement_pct,
+                    "DM p": r.dm_p,
+                    "rule met": "yes" if r.wins else "no",
+                }
+            )
+    e4b = pd.read_csv(rd / "E4b_weekly_mean_scores.csv")
+    e4b_all = e4b[e4b.crop == "all"][
+        ["horizon_weeks", "mape_lgbm", "mape_naive", "rel_improvement_pct", "dm_p", "wins"]
+    ]
+    e4b_crop = (
+        e4b[e4b.crop != "all"]
+        .pivot(index="crop", columns="horizon_weeks", values="rel_improvement_pct")
+        .reset_index()
+    )
+    e4b_crop.columns = ["crop"] + [f"rel % {int(c)}w" for c in e4b_crop.columns[1:]]
+    e4a = pd.read_csv(rd / "E4a_move_classification_scores.csv")
+    e4a_t = e4a[
+        [
+            "crop",
+            "n",
+            "share_up",
+            "share_down",
+            "macro_f1_lgbm",
+            "macro_f1_flat",
+            "macro_f1_trend",
+            "prec_up_lgbm",
+            "rec_up_lgbm",
+            "prec_down_lgbm",
+            "rec_down_lgbm",
+            "dm_p_vs_flat",
+            "dm_p_vs_trend",
+            "dm_bal_p_vs_flat",
+            "dm_bal_p_vs_trend",
+        ]
+    ]
+    e3 = pd.read_csv(rd / "E3_importance.csv").head(8)
+    e5w = pd.read_csv(rd / "E5_combination_weights.csv")
+    storage = json.loads((rd / "storage.json").read_text(encoding="utf-8"))
+    st = pd.DataFrame(storage["tables"])[["table", "total_mb", "heap_mb", "index_mb", "live_rows"]]
+    ix = pd.DataFrame(storage["indexes"])[["table", "index", "mb"]]
+    narrative = (rd / "narrative.md").read_text(encoding="utf-8")
+    parts = [
+        "# Phase 2.5 — signal hunt",
+        "",
+        narrative.split("<!-- TABLES -->")[0].strip(),
+        "",
+        "## Results vs naive (52-fold walk-forward, h = 7, p50; same rows for model and naive)",
+        "",
+        _md(pd.DataFrame(summary), 3),
+        "",
+        "### Per crop",
+        "",
+        _md(pd.DataFrame(crop_rows), 3),
+        "",
+        "### E4a — move classification at h = 7 (up > +3 %, down < -3 %, flat)",
+        "",
+        "DM p-values: `dm_p_*` = pre-agreed 0/1 loss; `dm_bal_p_*` = class-balanced 0/1 loss "
+        "(supplementary, consistent with macro-F1).",
+        "",
+        _md(e4a_t, 3),
+        "",
+        "### E4b — weekly mean price, horizons 1-4 weeks (all crops)",
+        "",
+        _md(e4b_all, 3),
+        "",
+        "Relative MAPE improvement vs naive weekly, per crop (negative = worse than naive):",
+        "",
+        _md(e4b_crop, 1),
+        "",
+        "### E3 — where the importance goes without the `market` categorical (share of gain %)",
+        "",
+        _md(e3, 2),
+        "",
+        "### E5 — learned per-series weight on LGBM (mean over evaluated folds)",
+        "",
+        _md(e5w, 2),
+        "",
+        "## Neon storage after archiving",
+        "",
+        f"DB size: **{storage['db_mb_before']} MB → {storage['db_mb_now']} MB** "
+        f"(target < 220 MB). Archived: {storage['archive']}.",
+        "",
+        _md(st, 1),
+        "",
+        "Indexes:",
+        "",
+        _md(ix, 2),
+        "",
+        narrative.split("<!-- TABLES -->")[1].strip(),
+        "",
+    ]
+    out = H.settings.reports_dir / "phase2_5_signal_hunt.md"
+    out.write_text("\n".join(parts), encoding="utf-8")
+    log.info("report written", extra={"path": str(out)})
 
 
 COMMANDS = {
