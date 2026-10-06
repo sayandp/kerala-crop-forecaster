@@ -1,0 +1,29 @@
+# Modelled series (commodity, market, variety) — canonical names as in prices_clean.
+# Source: notebooks/eda.ipynb section 9 (usable rule: >= 2 years, < 20 % missing Mon-Sat days,
+# alive in the last 30 days). Edit freely; features/train/backtest read this list.
+# Changing it changes the model population: note it in the MLflow run (it is logged).
+series:
+  # banana (Nendran)
+  - {commodity: banana, market: Kayamkulam, variety: Nendran}
+  - {commodity: banana, market: Chenkal VFPCK, variety: Nendran}
+  - {commodity: banana, market: Mookkannur VFPCK, variety: Nendran}
+  - {commodity: banana, market: Parassala, variety: Nendran}
+  - {commodity: banana, market: Thiruvaniyoor VFPCK, variety: Nendran}
+  - {commodity: banana, market: Elamad VFPCK, variety: Nendran}
+  - {commodity: banana, market: Kunnukara VFPCK, variety: Nendran}
+  - {commodity: banana, market: Vengannore VFPCK, variety: Nendran}
+  # coconut
+  - {commodity: coconut, market: Koduvayoor, variety: Big}
+  - {commodity: coconut, market: Palakkad, variety: Coconut}
+  - {commodity: coconut, market: North Paravur, variety: Big}
+  # pepper
+  - {commodity: pepper, market: Kannur, variety: Other}
+  - {commodity: pepper, market: Manjeswaram, variety: Garbled Other}
+  - {commodity: pepper, market: North Paravur, variety: Garbled}
+  # tapioca
+  - {commodity: tapioca, market: Manjeswaram, variety: Other}
+  - {commodity: tapioca, market: Payyannur, variety: Other}
+  - {commodity: tapioca, market: Perumbavoor, variety: Tapioca}
+  - {commodity: tapioca, market: North Paravur, variety: Other}
+  # rubber (provisional: 25.7 % missing; no series passes the EDA rule)
+  - {commodity: rubber, market: Pulpally, variety: Other}

@@ -13,3 +13,5 @@ logs/
 mlruns/
 mlflow.db
 *.egg-info/
+data/snapshots/
+data/features/

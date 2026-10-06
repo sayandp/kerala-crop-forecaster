@@ -1,0 +1,71 @@
+# Festival dates (Kerala observance) for the window flags in features/build.py.
+# A flag is 1 when the TARGET date is within [festival - 14 days, festival].
+# Islamic festivals follow local moon sighting; Kerala often observes them a day earlier
+# than the rest of India. A one-day error barely matters for a 15-day window flag.
+#
+# Verification (2026-10-07):
+#   onam  2026-08-26, 2027-09-12  drikpanchang.com (Thiruvonam)
+#   vishu 2023..2027              officeholidays.com (Kerala)
+#   ramzan 2025-03-31, 2026-03-20  Kerala moon-sighting news (Deshabhimani); 2027 = projected
+#   bakrid 2020..2026             drikpanchang.com / Kerala GAD holiday notification (2026-05-27)
+#   others: Kerala Government holiday lists as known; marked "list" below.
+#   2027 Islamic dates are astronomical projections — re-check when announced.
+
+window_days: 14
+
+festivals:
+  onam:      # Thiruvonam
+    - 2018-08-25  # list
+    - 2019-09-11  # list
+    - 2020-08-31  # list
+    - 2021-08-21  # list
+    - 2022-09-08  # list
+    - 2023-08-29  # list
+    - 2024-09-15  # list
+    - 2025-09-05  # list
+    - 2026-08-26  # verified
+    - 2027-09-12  # verified
+  vishu:
+    - 2018-04-14  # list
+    - 2019-04-15  # list
+    - 2020-04-14  # list
+    - 2021-04-14  # list
+    - 2022-04-15  # list
+    - 2023-04-15  # verified
+    - 2024-04-14  # verified
+    - 2025-04-14  # verified
+    - 2026-04-15  # verified
+    - 2027-04-15  # verified
+  christmas:
+    - 2018-12-25
+    - 2019-12-25
+    - 2020-12-25
+    - 2021-12-25
+    - 2022-12-25
+    - 2023-12-25
+    - 2024-12-25
+    - 2025-12-25
+    - 2026-12-25
+    - 2027-12-25
+  ramzan:    # Eid ul-Fitr, Kerala
+    - 2018-06-15  # list
+    - 2019-06-04  # list (Kerala; rest of India 06-05)
+    - 2020-05-24  # list (Kerala; rest of India 05-25)
+    - 2021-05-13  # list
+    - 2022-05-03  # list
+    - 2023-04-21  # list (Kerala; rest of India 04-22)
+    - 2024-04-10  # list (Kerala; rest of India 04-11)
+    - 2025-03-31  # verified
+    - 2026-03-20  # verified
+    - 2027-03-10  # projected
+  bakrid:    # Eid al-Adha, Kerala
+    - 2018-08-22  # list
+    - 2019-08-12  # list
+    - 2020-07-31  # verified (Kerala; rest of India 08-01)
+    - 2021-07-21  # verified
+    - 2022-07-10  # verified
+    - 2023-06-29  # verified
+    - 2024-06-17  # verified
+    - 2025-06-07  # verified
+    - 2026-05-27  # verified (Kerala holiday)
+    - 2027-05-17  # projected
