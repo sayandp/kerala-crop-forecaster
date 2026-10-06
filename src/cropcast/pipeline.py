@@ -10,6 +10,7 @@ the run failed and pings the admin on Telegram.
 from __future__ import annotations
 
 import argparse
+import json
 import logging
 import os
 import subprocess
@@ -168,6 +169,31 @@ def git_sha() -> str | None:
     return out.stdout.strip() or None
 
 
+def _run_details(ctx: RunContext, results: list[StepResult]) -> dict[str, Any]:
+    """Per-step metrics plus db_size_mb (best effort: a DB error must not mask the run's)."""
+    details: dict[str, Any] = {r.step: r.metrics for r in results}
+    try:
+        details["db_size_mb"] = db.database_size_mb(ctx.engine)
+    except Exception:
+        log.warning("could not measure db size", exc_info=True)
+        details["db_size_mb"] = None
+    ctx.artifacts["details"] = details
+    return details
+
+
+def _check_db_budget(size_mb: float | None) -> None:
+    if size_mb is None or size_mb < settings.db_warn_mb:
+        return
+    log.warning(
+        "database size near free-tier limit",
+        extra={"db_size_mb": size_mb, "budget_mb": settings.db_budget_mb},
+    )
+    send_admin_message(
+        f"cropcast DB is {size_mb:.0f} MB (warn {settings.db_warn_mb:.0f}, "
+        f"budget {settings.db_budget_mb:.0f}, Neon free tier 512). Prune before it fills."
+    )
+
+
 def run_pipeline(steps: list[str], ctx: RunContext) -> list[StepResult]:
     unknown = [s for s in steps if s not in STEPS]
     if unknown:
@@ -210,10 +236,11 @@ def run_pipeline(steps: list[str], ctx: RunContext) -> list[StepResult]:
         )
         raise
     if ctx.run_id is not None:
-        db.finish_run(
-            ctx.run_id, "success", details={r.step: r.metrics for r in results}, engine=ctx.engine
-        )
-    log.info("pipeline finished", extra={"run_id": ctx.run_id})
+        details = _run_details(ctx, results)
+        db.finish_run(ctx.run_id, "success", details=details, engine=ctx.engine)
+        _check_db_budget(details["db_size_mb"])
+    size = ctx.artifacts.get("details", {}).get("db_size_mb")
+    log.info("pipeline finished", extra={"run_id": ctx.run_id, "db_size_mb": size})
     return results
 
 
@@ -232,7 +259,31 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         default=settings.ingest_lookback_days,
         help="also re-pull this many days before --date (late market reports)",
     )
+    p.add_argument(
+        "--status-file",
+        type=Path,
+        default=None,
+        help="write a JSON run summary here (CI commits it as status/last_run.json)",
+    )
     return p.parse_args(argv)
+
+
+def write_status(path: Path, ctx: RunContext, steps: list[str], status: str) -> None:
+    details: dict[str, Any] = ctx.artifacts.get("details", {})
+    payload = {
+        "run_date": ctx.run_date.isoformat(),
+        "finished_at": datetime.now(IST).isoformat(timespec="seconds"),
+        "status": status,
+        "run_id": ctx.run_id,
+        "steps": steps,
+        "dry_run": ctx.dry_run,
+        "db_size_mb": details.get("db_size_mb"),
+        "rows_upserted": details.get("validate", {}).get("upserted"),
+        "rows_new": details.get("validate", {}).get("new_rows"),
+        "git_sha": git_sha(),
+    }
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -248,10 +299,15 @@ def main(argv: list[str] | None = None) -> int:
     )
     setup_logging(log_file=None if args.dry_run else log_file)
     ctx = RunContext(run_date=run_date, dry_run=args.dry_run, lookback_days=args.lookback)
+    status = "failed"
     try:
         run_pipeline(steps, ctx)
+        status = "success"
     except Exception:
         return 1
+    finally:
+        if args.status_file is not None:
+            write_status(args.status_file, ctx, steps, status)
     return 0
 
 

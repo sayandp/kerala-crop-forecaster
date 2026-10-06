@@ -92,3 +92,15 @@ def test_failed_run_is_logged_and_admin_pinged(
         status, error = conn.execute(text("SELECT status, error FROM pipeline_runs")).one()
     assert status == "failed" and "all ingest sources failed" in error
     assert len(sent) == 1 and "step=ingest" in sent[0]
+
+
+def test_run_records_db_size_mb(engine: Engine, monkeypatch: pytest.MonkeyPatch) -> None:
+    sent: list[str] = []
+    monkeypatch.setattr(pipeline, "send_admin_message", lambda msg: sent.append(msg) or True)
+    monkeypatch.setattr(pipeline.settings, "db_warn_mb", 0.0)  # force the budget warning
+    ctx = pipeline.RunContext(run_date=date(2026, 10, 3), engine=engine)
+    pipeline.run_pipeline([], ctx)
+    with engine.connect() as conn:
+        details = conn.execute(text("SELECT details FROM pipeline_runs")).scalar_one()
+    assert details["db_size_mb"] > 0
+    assert len(sent) == 1 and "MB" in sent[0]

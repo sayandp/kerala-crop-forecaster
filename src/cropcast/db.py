@@ -156,6 +156,14 @@ def upsert_weather(df: pd.DataFrame, engine: Engine | None = None) -> int:
     return len(recs)
 
 
+def database_size_mb(engine: Engine | None = None) -> float:
+    """Current database size in MB (free-tier budget: see CLAUDE.md)."""
+    engine = engine or get_engine()
+    with engine.connect() as conn:
+        size = conn.execute(text("SELECT pg_database_size(current_database())")).scalar_one()
+    return round(int(size) / 1024 / 1024, 1)
+
+
 # --- pipeline_runs ----------------------------------------------------------
 
 

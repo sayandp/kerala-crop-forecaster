@@ -30,6 +30,10 @@ class Settings(BaseSettings):
     # Throwaway database for DB tests (they TRUNCATE tables). Tests skip when unset/unreachable.
     test_database_url: str | None = None
 
+    # Free-tier budget (Neon 0.5 GB): keep the DB under budget; ping admin above warn.
+    db_budget_mb: float = 400.0
+    db_warn_mb: float = 350.0
+
     # --- data.gov.in "Current Daily Price of Various Commodities from Various Markets (Mandi)"
     # Returns today's prices only; history is accumulated by the daily pull.
     datagov_api_key: SecretStr | None = None

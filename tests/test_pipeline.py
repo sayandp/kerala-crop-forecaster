@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import date
+from pathlib import Path
 
 import pandas as pd
 import pytest
@@ -51,3 +52,25 @@ def test_cli_parses_steps_and_date() -> None:
     assert args.steps == "ingest,validate"
     assert args.date == date(2026, 10, 1)
     assert args.dry_run is True
+
+
+def test_status_file_written_on_success_and_failure(
+    monkeypatch: pytest.MonkeyPatch, good_prices: pd.DataFrame, tmp_path: Path
+) -> None:
+    import json
+
+    monkeypatch.setattr(pipeline, "normalize", lambda df: df)
+    monkeypatch.setattr(pipeline, "fetch_kerala_prices", lambda *a, **k: good_prices.copy())
+    status = tmp_path / "status" / "last_run.json"
+    argv = ["--steps", "ingest,validate", "--date", "2026-10-03", "--dry-run"]
+    assert pipeline.main([*argv, "--status-file", str(status)]) == 0
+    ok = json.loads(status.read_text(encoding="utf-8"))
+    assert ok["status"] == "success" and ok["run_date"] == "2026-10-03"
+
+    def boom(*_a: object, **_k: object) -> pd.DataFrame:
+        raise RuntimeError("source down")
+
+    monkeypatch.setattr(pipeline, "fetch_kerala_prices", boom)
+    monkeypatch.setattr(pipeline, "send_admin_message", lambda msg: True)
+    assert pipeline.main([*argv, "--status-file", str(status)]) == 1
+    assert json.loads(status.read_text(encoding="utf-8"))["status"] == "failed"
