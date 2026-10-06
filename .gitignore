@@ -12,6 +12,7 @@ reports/*
 !reports/phase2_5/
 reports/phase2_5/*.parquet
 !reports/phase2_5_signal_hunt.md
+!reports/preregistration_e4a.md
 logs/
 mlruns/
 mlflow.db

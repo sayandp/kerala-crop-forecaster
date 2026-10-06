@@ -70,7 +70,8 @@ CREATE TABLE IF NOT EXISTS archive_log (
     release_tag  TEXT        PRIMARY KEY,   -- GitHub Release, e.g. data-archive-2026-10-07
     cutoff_date  DATE        NOT NULL,      -- rows dated < cutoff_date were archived
     rows         INTEGER     NOT NULL,
-    archived_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+    archived_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+    table_name   TEXT        NOT NULL DEFAULT 'prices_raw'
 );
 
 -- ---------------------------------------------------------------------------
@@ -137,12 +138,15 @@ CREATE TABLE IF NOT EXISTS forecasts (
     horizon        SMALLINT       NOT NULL CHECK (horizon IN (1, 7, 14)),
     market         TEXT           NOT NULL,
     commodity      TEXT           NOT NULL,
+    variety        TEXT           NOT NULL,
     p10            NUMERIC(12, 2) NOT NULL,
     p50            NUMERIC(12, 2) NOT NULL,
     p90            NUMERIC(12, 2) NOT NULL,
+    last_value     NUMERIC(12, 2),            -- last observed price at forecast time
+    model_name     TEXT,
     model_version  TEXT           NOT NULL,
     created_at     TIMESTAMPTZ    NOT NULL DEFAULT now(),
-    PRIMARY KEY (forecast_date, horizon, market, commodity)
+    PRIMARY KEY (forecast_date, horizon, commodity, market, variety)
 );
 CREATE INDEX IF NOT EXISTS ix_forecasts_target ON forecasts (commodity, market, target_date);
 
@@ -170,4 +174,57 @@ CREATE TABLE IF NOT EXISTS subscribers (
     last_alert_date  DATE,
     created_at       TIMESTAMPTZ  NOT NULL DEFAULT now(),
     PRIMARY KEY (chat_id, commodity, market)
+);
+
+-- ---------------------------------------------------------------------------
+-- Serving (Phase 3; see migration 006)
+-- ---------------------------------------------------------------------------
+-- Shadow (never user-facing) predictions of the move challenger (preregistration_e4a.md).
+CREATE TABLE IF NOT EXISTS shadow_predictions (
+    forecast_date  DATE           NOT NULL,   -- origin: last data day used
+    target_date    DATE           NOT NULL,   -- forecast_date + 7
+    commodity      TEXT           NOT NULL,
+    market         TEXT           NOT NULL,
+    variety        TEXT           NOT NULL,
+    pred_class     TEXT           NOT NULL CHECK (pred_class IN ('down', 'flat', 'up')),
+    p_down         DOUBLE PRECISION NOT NULL,
+    p_flat         DOUBLE PRECISION NOT NULL,
+    p_up           DOUBLE PRECISION NOT NULL,
+    trend_class    TEXT           NOT NULL CHECK (trend_class IN ('down', 'flat', 'up')),
+    last_value     NUMERIC(12, 2) NOT NULL,
+    model_version  TEXT           NOT NULL,
+    spec_hash      TEXT           NOT NULL,
+    prereg_commit  TEXT           NOT NULL,   -- commit of reports/preregistration_e4a.md
+    run_id         BIGINT,
+    created_at     TIMESTAMPTZ    NOT NULL DEFAULT now(),
+    PRIMARY KEY (forecast_date, commodity, market, variety)
+);
+
+-- Every registry gate decision (price gate, champion refresh, live move-model verdicts).
+CREATE TABLE IF NOT EXISTS promotion_log (
+    id                  BIGSERIAL   PRIMARY KEY,
+    decided_at          TIMESTAMPTZ NOT NULL DEFAULT now(),
+    model_name          TEXT        NOT NULL,
+    scope               TEXT        NOT NULL,   -- 'all' or a crop
+    challenger_version  TEXT,
+    champion_version    TEXT,
+    decision            TEXT        NOT NULL,   -- promote | refuse | refresh | pass | fail | insufficient data
+    reason              TEXT        NOT NULL,
+    metrics             JSONB,
+    mlflow_run_id       TEXT,
+    run_id              BIGINT
+);
+
+-- Telegram Stage 1: one post per date (idempotency) and daily subscriber counts.
+CREATE TABLE IF NOT EXISTS channel_posts (
+    post_date   DATE        PRIMARY KEY,
+    chat_id     TEXT        NOT NULL,
+    message_id  BIGINT,
+    text        TEXT        NOT NULL,
+    posted_at   TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE TABLE IF NOT EXISTS channel_stats (
+    date          DATE        PRIMARY KEY,
+    member_count  INTEGER     NOT NULL,
+    recorded_at   TIMESTAMPTZ NOT NULL DEFAULT now()
 );
