@@ -9,11 +9,25 @@ full design. **Status: Phase 1** — daily ingest + historical backfill + EDA.
 ```bash
 uv sync
 cp .env.example .env                                   # fill in secrets
-docker compose -f docker/docker-compose.yml up -d      # Postgres 16 (+ MLflow for later)
+docker compose -f docker/docker-compose.yml up -d      # or: .\scripts\pg_local.ps1 start
 uv run python -m cropcast.pipeline --steps ingest,validate,weather
 uv run python scripts/backfill.py --start 2018-01 --weather   # one-time, ~40 min, resumable
 uv run pytest -q
 ```
+
+## Databases
+
+**Neon is the source of truth** (the `DATABASE_URL` GitHub secret; the daily job writes there).
+The local Postgres is for development only — never treat it as authoritative.
+
+Local dev Postgres 16 lives in `D:\pg` (portable binaries + data dir, outside Temp so
+Windows cleanup can't touch it):
+
+```powershell
+.\scripts\pg_local.ps1 start | stop | restart | status | check   # check = row counts
+```
+
+`scripts/copy_to_neon.py` was the one-time local → Neon migration.
 
 ## Data sources
 
