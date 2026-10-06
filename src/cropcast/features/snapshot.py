@@ -46,7 +46,8 @@ def take_snapshot(engine: Engine, series: list[Series], asof: date) -> Snapshot:
             text(
                 "SELECT commodity, market, variety, date, modal_price::float8 AS modal_price, "
                 "min_price::float8 AS min_price, max_price::float8 AS max_price, n_reports, "
-                "sources FROM prices_clean WHERE date <= :asof"
+                "arrivals_tonnes::float8 AS arrivals_tonnes, sources "
+                "FROM prices_clean WHERE date <= :asof"
             ),
             conn,
             params={"asof": asof},

@@ -221,3 +221,14 @@ def test_build_clean_merges_aliased_rows_into_one_series() -> None:
     out = build_clean(raw, pd.DataFrame(), aliases)
     assert set(out["variety"]) == {"RSS-4"} and len(out) == 2
     assert np.issubdtype(out["n_reports"].dtype, np.integer)
+
+
+def test_arrivals_are_summed_per_series_day() -> None:
+    rows = [
+        {**_clean_row(modal_price=5500.0), "arrivals_tonnes": 2.0},
+        {**_clean_row(modal_price=5600.0), "arrivals_tonnes": 1.5},
+        {**_clean_row(variety="Poovan"), "arrivals_tonnes": None},
+    ]
+    out = aggregate_same_day(pd.DataFrame(rows)).set_index("variety")
+    assert out.loc["Nendran", "arrivals_tonnes"] == pytest.approx(3.5)
+    assert np.isnan(out.loc["Poovan", "arrivals_tonnes"])  # none reported -> NULL, not 0

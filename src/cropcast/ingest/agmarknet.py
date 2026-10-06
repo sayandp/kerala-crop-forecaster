@@ -26,6 +26,7 @@ from typing import Any
 from zoneinfo import ZoneInfo
 
 import httpx
+import numpy as np
 import pandas as pd
 
 from cropcast.config import settings
@@ -45,6 +46,7 @@ STANDARD_COLUMNS: list[str] = [
     "min_price",
     "max_price",
     "modal_price",
+    "arrivals_tonnes",
     "source",
 ]
 SOURCE_DATAGOV = "agmarknet"  # data.gov.in republishes Agmarknet data
@@ -80,7 +82,9 @@ def _finish(df: pd.DataFrame, source: str) -> pd.DataFrame:
     if df.empty:
         return _empty()
     df["source"] = source
-    for col in ("min_price", "max_price", "modal_price"):
+    if "arrivals_tonnes" not in df.columns:
+        df["arrivals_tonnes"] = np.nan  # e.g. data.gov.in publishes no arrivals
+    for col in ("min_price", "max_price", "modal_price", "arrivals_tonnes"):
         df[col] = pd.to_numeric(df[col], errors="coerce").astype(float)
     return df.reindex(columns=STANDARD_COLUMNS)
 
@@ -143,6 +147,7 @@ def parse_portal_daily(payload: dict[str, Any], day: date) -> pd.DataFrame:
                     if unit.strip().casefold() not in QUINTAL_UNITS:
                         other_units[(str(name), unit)] += 1
                         continue
+                    tonnes = str(rec.get("unitOfArrivals") or "").casefold() == "metric tonnes"
                     rows.append(
                         {
                             "date": day,
@@ -154,6 +159,7 @@ def parse_portal_daily(payload: dict[str, Any], day: date) -> pd.DataFrame:
                             "min_price": rec.get("minimumPrice"),
                             "max_price": rec.get("maximumPrice"),
                             "modal_price": rec.get("modalPrice"),
+                            "arrivals_tonnes": rec.get("arrivals") if tonnes else None,
                         }
                     )
     if other_units:
@@ -221,6 +227,7 @@ def parse_portal_month(payload: dict[str, Any], commodity_name: str) -> pd.DataF
                         "min_price": rec.get("minimumPrice"),
                         "max_price": rec.get("maximumPrice"),
                         "modal_price": rec.get("modalPrice"),
+                        "arrivals_tonnes": rec.get("arrivals"),  # report is in metric tonnes
                     }
                 )
     df = pd.DataFrame(rows)

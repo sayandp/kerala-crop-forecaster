@@ -17,6 +17,7 @@ CREATE TABLE IF NOT EXISTS prices_raw (
     min_price    NUMERIC(12, 2),            -- NULL: market reported only the modal price
     max_price    NUMERIC(12, 2),            -- NULL: market reported only the modal price
     modal_price  NUMERIC(12, 2) NOT NULL,
+    arrivals_tonnes NUMERIC(12, 3),         -- arrival quantity, metric tonnes (NULL: not reported)
     source       TEXT           NOT NULL,
     ingested_at  TIMESTAMPTZ    NOT NULL DEFAULT now(),
     updated_at   TIMESTAMPTZ    NOT NULL DEFAULT now(),
@@ -57,6 +58,7 @@ CREATE TABLE IF NOT EXISTS prices_clean (
     min_price    NUMERIC(12, 2),
     max_price    NUMERIC(12, 2),
     n_reports    SMALLINT       NOT NULL CHECK (n_reports >= 1),
+    arrivals_tonnes NUMERIC(12, 3),         -- sum over the day's reports (NULL: none reported)
     sources      TEXT           NOT NULL,
     PRIMARY KEY (commodity, market, variety, date)
 );
@@ -76,6 +78,7 @@ CREATE TABLE IF NOT EXISTS prices_rejected (
     min_price    NUMERIC(12, 2),
     max_price    NUMERIC(12, 2),
     modal_price  NUMERIC(12, 2),
+    arrivals_tonnes NUMERIC(12, 3),
     source       TEXT,
     reason       TEXT           NOT NULL,
     rejected_at  TIMESTAMPTZ    NOT NULL DEFAULT now()

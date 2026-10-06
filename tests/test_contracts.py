@@ -118,3 +118,9 @@ def test_zero_zero_bounds_become_null() -> None:
     assert out.loc[1, "min_price"] == 0.0  # a lone 0 minimum is kept as reported
     good, rejected = validate(out, today=TODAY)
     assert len(good) == 2 and rejected.empty
+
+
+def test_negative_arrivals_rejected() -> None:
+    good, rejected = _validate([price_row(arrivals_tonnes=-1.0), price_row(variety="x")])
+    assert len(good) == 1
+    assert "arrivals_tonnes:negative_arrivals" in rejected.loc[0, "reason"]

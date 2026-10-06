@@ -15,6 +15,7 @@ import logging
 from collections import defaultdict
 from datetime import date
 
+import numpy as np
 import pandas as pd
 import pandera.pandas as pa
 from pandera.errors import SchemaErrors
@@ -53,6 +54,9 @@ def price_schema(
             ),
             "max_price": pa.Column(float, nullable=True),
             "modal_price": pa.Column(float, pa.Check.gt(0, error="modal_price_not_positive")),
+            "arrivals_tonnes": pa.Column(
+                float, pa.Check.ge(0, error="negative_arrivals"), nullable=True
+            ),
             "source": pa.Column(str, nullable=False),
         },
         checks=[
@@ -75,7 +79,9 @@ def price_schema(
 def _prepare(df: pd.DataFrame) -> pd.DataFrame:
     out = df.copy().reset_index(drop=True)
     out["date"] = pd.to_datetime(out["date"], errors="coerce").astype("datetime64[ns]")
-    for col in ("min_price", "max_price", "modal_price"):
+    if "arrivals_tonnes" not in out.columns:
+        out["arrivals_tonnes"] = np.nan
+    for col in ("min_price", "max_price", "modal_price", "arrivals_tonnes"):
         out[col] = pd.to_numeric(out[col], errors="coerce").astype(float)
     for col in ("state", "district", "market", "commodity", "variety", "source"):
         out[col] = out[col].astype(object).where(out[col].notna(), None)

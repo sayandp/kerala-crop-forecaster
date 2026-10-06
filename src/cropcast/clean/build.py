@@ -14,8 +14,16 @@ from cropcast.ingest.mappings import apply_price_conventions
 from cropcast.validate.schemas import validate
 
 KEY = ["commodity", "market", "variety", "date"]
-INPUT_COLUMNS = [*KEY, "min_price", "max_price", "modal_price", "source"]
-CLEAN_COLUMNS = [*KEY, "modal_price", "min_price", "max_price", "n_reports", "sources"]
+INPUT_COLUMNS = [*KEY, "min_price", "max_price", "modal_price", "arrivals_tonnes", "source"]
+CLEAN_COLUMNS = [
+    *KEY,
+    "modal_price",
+    "min_price",
+    "max_price",
+    "n_reports",
+    "arrivals_tonnes",
+    "sources",
+]
 
 
 def eligible_duplicates(rejected: pd.DataFrame) -> pd.DataFrame:
@@ -29,7 +37,7 @@ def eligible_duplicates(rejected: pd.DataFrame) -> pd.DataFrame:
     dup = rejected[rejected["reason"].str.contains("duplicate_key", na=False)]
     dup = apply_price_conventions(dup)  # modal-only (0/0) duplicates are valid since 002
     good, _ = validate(dup, check_unique=False)
-    return good.drop_duplicates(subset=INPUT_COLUMNS).loc[:, INPUT_COLUMNS]
+    return good.reindex(columns=INPUT_COLUMNS).drop_duplicates(subset=INPUT_COLUMNS)
 
 
 def aggregate_same_day(df: pd.DataFrame) -> pd.DataFrame:
@@ -37,7 +45,9 @@ def aggregate_same_day(df: pd.DataFrame) -> pd.DataFrame:
     if df.empty:
         return pd.DataFrame(columns=CLEAN_COLUMNS)
     work = df.assign(date=pd.to_datetime(df["date"]).dt.date)
-    for col in ("modal_price", "min_price", "max_price"):
+    if "arrivals_tonnes" not in work.columns:
+        work["arrivals_tonnes"] = float("nan")
+    for col in ("modal_price", "min_price", "max_price", "arrivals_tonnes"):
         work[col] = pd.to_numeric(work[col], errors="coerce").astype(float)
     g = work.groupby(KEY, sort=True, dropna=False)
     out = g.agg(
@@ -45,6 +55,8 @@ def aggregate_same_day(df: pd.DataFrame) -> pd.DataFrame:
         min_price=("min_price", "min"),  # NaN-skipping: NULL only if every report is modal-only
         max_price=("max_price", "max"),
         n_reports=("modal_price", "size"),
+        # Total arrivals of the day; NaN only if no report carried arrivals.
+        arrivals_tonnes=("arrivals_tonnes", lambda a: a.sum(min_count=1)),
         sources=("source", lambda s: ",".join(sorted(set(map(str, s))))),
     ).reset_index()
     out["modal_price"] = out["modal_price"].round(2)
@@ -52,7 +64,7 @@ def aggregate_same_day(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def build_clean(raw: pd.DataFrame, duplicates: pd.DataFrame, aliases: pd.DataFrame) -> pd.DataFrame:
-    frames = [f.loc[:, INPUT_COLUMNS] for f in (raw, duplicates) if not f.empty]
+    frames = [f.reindex(columns=INPUT_COLUMNS) for f in (raw, duplicates) if not f.empty]
     if not frames:
         return pd.DataFrame(columns=CLEAN_COLUMNS)
     combined = pd.concat(frames, ignore_index=True)

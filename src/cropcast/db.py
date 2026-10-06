@@ -29,6 +29,7 @@ PRICE_COLUMNS: tuple[str, ...] = (
     "min_price",
     "max_price",
     "modal_price",
+    "arrivals_tonnes",
     "source",
 )
 PRICE_KEY: tuple[str, ...] = ("date", "market", "commodity", "variety")
@@ -65,8 +66,11 @@ def init_db(engine: Engine | None = None) -> None:
 
 
 def _records(df: pd.DataFrame, columns: Sequence[str]) -> list[dict[str, Any]]:
-    """DataFrame -> list of plain-python dicts with NaN/NaT mapped to None."""
-    out = df.loc[:, list(columns)].astype(object)
+    """DataFrame -> list of plain-python dicts with NaN/NaT mapped to None.
+
+    Optional columns missing from `df` (e.g. arrivals_tonnes) are sent as NULL.
+    """
+    out = df.reindex(columns=list(columns)).astype(object)
     out = out.where(pd.notna(out), None)
     recs: list[dict[str, Any]] = out.to_dict(orient="records")  # type: ignore[assignment]
     for r in recs:
@@ -79,22 +83,25 @@ def _records(df: pd.DataFrame, columns: Sequence[str]) -> list[dict[str, Any]]:
 _UPSERT_PRICES_SQL = text(
     """
     INSERT INTO prices_raw (date, state, district, market, commodity, variety,
-                            min_price, max_price, modal_price, source)
+                            min_price, max_price, modal_price, arrivals_tonnes, source)
     VALUES (:date, :state, :district, :market, :commodity, :variety,
-            :min_price, :max_price, :modal_price, :source)
+            :min_price, :max_price, :modal_price, :arrivals_tonnes, :source)
     ON CONFLICT (date, market, commodity, variety) DO UPDATE SET
         state       = EXCLUDED.state,
         district    = EXCLUDED.district,
         min_price   = EXCLUDED.min_price,
         max_price   = EXCLUDED.max_price,
         modal_price = EXCLUDED.modal_price,
+        arrivals_tonnes = EXCLUDED.arrivals_tonnes,
         source      = EXCLUDED.source,
         updated_at  = now()
     WHERE (prices_raw.state, prices_raw.district, prices_raw.min_price,
-           prices_raw.max_price, prices_raw.modal_price, prices_raw.source)
+           prices_raw.max_price, prices_raw.modal_price, prices_raw.arrivals_tonnes,
+           prices_raw.source)
         IS DISTINCT FROM
           (EXCLUDED.state, EXCLUDED.district, EXCLUDED.min_price,
-           EXCLUDED.max_price, EXCLUDED.modal_price, EXCLUDED.source)
+           EXCLUDED.max_price, EXCLUDED.modal_price, EXCLUDED.arrivals_tonnes,
+           EXCLUDED.source)
     """
 )
 
@@ -119,9 +126,9 @@ def insert_prices_if_absent(df: pd.DataFrame, engine: Engine | None = None) -> i
     stmt = text(
         """
         INSERT INTO prices_raw (date, state, district, market, commodity, variety,
-                                min_price, max_price, modal_price, source)
+                                min_price, max_price, modal_price, arrivals_tonnes, source)
         VALUES (:date, :state, :district, :market, :commodity, :variety,
-                :min_price, :max_price, :modal_price, :source)
+                :min_price, :max_price, :modal_price, :arrivals_tonnes, :source)
         ON CONFLICT (date, market, commodity, variety) DO NOTHING
         """
     )
@@ -144,16 +151,17 @@ def insert_rejected(df: pd.DataFrame, run_id: int | None, engine: Engine | None 
             frame[col] = None
     # Unparseable values must not break the quarantine insert itself.
     frame["date"] = pd.to_datetime(frame["date"], errors="coerce")
-    for col in ("min_price", "max_price", "modal_price"):
+    for col in ("min_price", "max_price", "modal_price", "arrivals_tonnes"):
         frame[col] = pd.to_numeric(frame[col], errors="coerce")
     frame["run_id"] = run_id
     recs = _records(frame, (*PRICE_COLUMNS, "reason", "run_id"))
     stmt = text(
         """
         INSERT INTO prices_rejected (run_id, date, state, district, market, commodity, variety,
-                                     min_price, max_price, modal_price, source, reason)
+                                     min_price, max_price, modal_price, arrivals_tonnes,
+                                     source, reason)
         VALUES (:run_id, :date, :state, :district, :market, :commodity, :variety,
-                :min_price, :max_price, :modal_price, :source, :reason)
+                :min_price, :max_price, :modal_price, :arrivals_tonnes, :source, :reason)
         """
     )
     with engine.begin() as conn:
@@ -260,7 +268,8 @@ def read_prices_raw(
     engine = engine or get_engine()
     sql = (
         "SELECT date, market, commodity, variety, min_price::float8 AS min_price, "
-        "max_price::float8 AS max_price, modal_price::float8 AS modal_price, source "
+        "max_price::float8 AS max_price, modal_price::float8 AS modal_price, "
+        "arrivals_tonnes::float8 AS arrivals_tonnes, source "
         "FROM prices_raw WHERE date >= COALESCE(:s, DATE '1900-01-01') "
         "AND date <= COALESCE(:e, DATE '2999-12-31')"
     )
@@ -320,12 +329,14 @@ def replace_prices_clean(
         "min_price",
         "max_price",
         "n_reports",
+        "arrivals_tonnes",
         "sources",
     )
     stmt = text(
         "INSERT INTO prices_clean (commodity, market, variety, date, modal_price, min_price, "
-        "max_price, n_reports, sources) VALUES (:commodity, :market, :variety, :date, "
-        ":modal_price, :min_price, :max_price, :n_reports, :sources)"
+        "max_price, n_reports, arrivals_tonnes, sources) VALUES (:commodity, :market, "
+        ":variety, :date, :modal_price, :min_price, :max_price, :n_reports, "
+        ":arrivals_tonnes, :sources)"
     )
     with engine.begin() as conn:
         if start is None:

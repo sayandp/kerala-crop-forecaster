@@ -125,3 +125,12 @@ def test_all_sources_failing_raises(monkeypatch: pytest.MonkeyPatch) -> None:
     # data.gov.in only serves today: a past run date makes the fallback fail too.
     with pytest.raises(RuntimeError, match="all ingest sources failed"):
         agmarknet.fetch_kerala_prices(date(2026, 1, 1), lookback_days=0)
+
+
+def test_arrivals_parsed_in_tonnes() -> None:
+    daily = parse_portal_daily(load_fixture("agmarknet_v2_daily_sample.json"), date(2026, 10, 1))
+    assert daily["arrivals_tonnes"].notna().all() and (daily["arrivals_tonnes"] > 0).all()
+    month = parse_portal_month(load_fixture("agmarknet_v2_month_sample.json"), "Banana")
+    assert month["arrivals_tonnes"].notna().all()
+    dg = parse_datagov(load_fixture("agmarknet_sample.json")["records"])
+    assert dg["arrivals_tonnes"].isna().all()  # data.gov.in publishes no arrivals
