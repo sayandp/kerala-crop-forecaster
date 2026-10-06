@@ -19,11 +19,11 @@ concurrency:
   cancel-in-progress: false
 
 permissions:
-  contents: read
+  contents: write  # commits status/last_run.json (keeps the cron alive past 60 idle days)
 
 jobs:
   run:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
     env:
       ENV: prod
@@ -32,9 +32,10 @@ jobs:
       TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
       TELEGRAM_ADMIN_CHAT_ID: ${{ secrets.TELEGRAM_ADMIN_CHAT_ID }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: astral-sh/setup-uv@v6
+      # setup-uv publishes no floating major tags after v7: pin the exact release.
+      - uses: astral-sh/setup-uv@v10.2.0
         with:
           python-version: "3.11"
           enable-cache: true
@@ -43,17 +44,18 @@ jobs:
         run: uv sync --frozen --no-dev
 
       - name: Run pipeline
+        id: pipeline
         env:
           RUN_DATE: ${{ inputs.date }}
           RUN_STEPS: ${{ inputs.steps || 'ingest,validate,weather' }}
         run: |
-          args=(--steps "$RUN_STEPS")
+          args=(--steps "$RUN_STEPS" --status-file status/last_run.json)
           if [ -n "$RUN_DATE" ]; then args+=(--date "$RUN_DATE"); fi
           uv run python -m cropcast.pipeline "${args[@]}"
 
       - name: Upload logs and raw snapshot
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: pipeline-${{ github.run_id }}
           path: |
@@ -62,6 +64,31 @@ jobs:
             reports/
           if-no-files-found: ignore
           retention-days: 30
+
+      - name: Commit status/last_run.json
+        if: always()
+        env:
+          OUTCOME: ${{ steps.pipeline.outcome }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          mkdir -p status
+          if [ ! -s status/last_run.json ]; then
+            # The pipeline never got far enough to write it (e.g. install failed).
+            jq -n --arg s "${OUTCOME:-skipped}" --arg t "$(date -u +%FT%TZ)" \
+              '{status: $s, finished_at: $t, note: "no summary from pipeline"}' \
+              > status/last_run.json
+          fi
+          tmp=$(mktemp)
+          jq --arg url "$RUN_URL" '. + {run_url: $url}' status/last_run.json > "$tmp"
+          mv "$tmp" status/last_run.json
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add status/last_run.json
+          git commit -m "chore(status): daily run ${OUTCOME:-unknown} [skip ci]"
+          for i in 1 2 3; do
+            git pull --rebase --quiet origin "${GITHUB_REF_NAME}" && git push origin "HEAD:${GITHUB_REF_NAME}" && break
+            sleep $((i * 5))
+          done
 
       - name: Notify admin if the job itself broke
         if: failure()
