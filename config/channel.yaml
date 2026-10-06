@@ -1,0 +1,24 @@
+# Telegram Stage 1: one public channel, one post per day (all crops).
+# Markets shown per crop (must be series in config/series.yaml). 1-3 per crop.
+crops:
+  banana:
+    - {market: Kayamkulam, variety: Nendran}
+    - {market: Parassala, variety: Nendran}
+    - {market: Chenkal VFPCK, variety: Nendran}
+  coconut:
+    - {market: Koduvayoor, variety: Big}
+    - {market: Palakkad, variety: Coconut}
+  pepper:
+    - {market: Kannur, variety: Other}
+    - {market: Manjeswaram, variety: Garbled Other}
+  rubber:
+    - {market: Kalpetta, variety: RSS-4}
+    - {market: Pulpally, variety: Other}
+  tapioca:
+    - {market: Payyannur, variety: Other}
+    - {market: Perumbavoor, variety: Tapioca}
+
+# Up/down move alerts stay OFF until the move classifier passes the pre-registered live
+# evaluation (reports/preregistration_e4a.md) AND a human flips this flag.
+move_alerts_enabled: false
+repo_url: https://github.com/sayandp/kerala-crop-forecaster

@@ -23,20 +23,24 @@ from pathlib import Path
 from typing import Any
 
 import pandas as pd
+from mlflow import MlflowClient
 from sqlalchemy import Engine, text
 
 from cropcast import db
 from cropcast.alerts.admin import send_admin_message
-from cropcast.archive import TAG_PREFIX, archive_prices_raw, load_archive
+from cropcast.alerts.channel import notify, record_member_count
+from cropcast.archive import TABLES as ARCHIVE_TABLES
+from cropcast.archive import archive_table, load_archive
 from cropcast.clean.aliases import evaluate_candidates, load_candidates
 from cropcast.clean.build import build_clean, eligible_duplicates
 from cropcast.config import PROJECT_ROOT, settings
 from cropcast.features.series import load_series
-from cropcast.features.snapshot import Snapshot
+from cropcast.features.snapshot import Snapshot, take_snapshot
 from cropcast.ingest.agmarknet import IST, fetch_kerala_prices, today_ist
 from cropcast.ingest.mappings import normalize
 from cropcast.ingest.weather import fetch_weather
 from cropcast.logging_setup import setup_logging
+from cropcast.models.move import spec_hash
 from cropcast.models.training import (
     MlflowSession,
     backtest_and_log,
@@ -47,6 +51,24 @@ from cropcast.models.training import (
     train_final,
 )
 from cropcast.models.tune import TUNE_HORIZON, tune
+from cropcast.monitor.live import (
+    matured_forecasts,
+    matured_shadow,
+    price_live_metrics,
+    shadow_evaluation,
+    shadow_metric_rows,
+)
+from cropcast.predict.batch import predict_prices, predict_shadow
+from cropcast.registry.promote import (
+    MOVE_MODEL,
+    Decision,
+    alias_version,
+    price_model_name,
+    record,
+    set_alias,
+)
+from cropcast.registry.retrain import retrain_and_register
+from cropcast.tracking import configure_mlflow
 from cropcast.validate.schemas import check_reject_rate, validate
 
 log = logging.getLogger("cropcast.pipeline")
@@ -340,14 +362,161 @@ def run_backtest(ctx: RunContext) -> StepResult:
 
 
 def run_archive(ctx: RunContext) -> StepResult:
-    """Monthly: prices_raw rows older than archive_after_days -> GitHub Release, then delete."""
+    """Monthly retention: prices_raw > 90 days, forecasts / shadow_predictions > 180 days
+    -> GitHub Release (verified) -> deleted from the DB."""
     engine = ctx.engine or db.get_engine()
-    cutoff = ctx.run_date - timedelta(days=settings.archive_after_days)
-    result = archive_prices_raw(engine, cutoff, f"{TAG_PREFIX}{ctx.run_date}", dry_run=ctx.dry_run)
-    return StepResult(
-        "archive",
-        metrics={"cutoff": str(cutoff), "rows": result.rows, "release": result.tag},
+    metrics: dict[str, Any] = {}
+    for table in ARCHIVE_TABLES:
+        result = archive_table(engine, table, ctx.run_date, dry_run=ctx.dry_run)
+        metrics[table] = {"cutoff": str(result.cutoff), "rows": result.rows, "release": result.tag}
+    return StepResult("archive", metrics=metrics)
+
+
+# --- Phase 3: serve honestly ---------------------------------------------------------------
+
+
+def _serve_snapshot(ctx: RunContext) -> Snapshot:
+    """One prices_clean + weather read per run for predict / shadow."""
+    if "serve_snapshot" not in ctx.artifacts:
+        ctx.artifacts["serve_snapshot"] = take_snapshot(
+            ctx.engine or db.get_engine(), load_series(), ctx.run_date
+        )
+    snap: Snapshot = ctx.artifacts["serve_snapshot"]
+    return snap
+
+
+def run_retrain(ctx: RunContext) -> StepResult:
+    """Weekly: refit + register champion/challenger versions, run the price gate."""
+    if ctx.dry_run:
+        return StepResult("retrain", metrics={"skipped": "dry-run (no registry writes)"})
+    out = retrain_and_register(ctx.engine or db.get_engine(), ctx.run_date, ctx.run_id)
+    return StepResult("retrain", metrics=out)
+
+
+def run_predict(ctx: RunContext) -> StepResult:
+    """`cropcast-price-h{h}@champion` for all series x h -> forecasts."""
+    configure_mlflow()
+    out = predict_prices(
+        ctx.engine or db.get_engine(),
+        _serve_snapshot(ctx),
+        load_series(),
+        ctx.run_date,
+        ctx.run_id,
+        ctx.dry_run,
     )
+    return StepResult(
+        "predict",
+        metrics={"rows": len(out), "versions": sorted(set(out["model_version"].astype(str)))},
+    )
+
+
+def run_shadow(ctx: RunContext) -> StepResult:
+    """`cropcast-move-h7@challenger` -> shadow_predictions (never user-facing)."""
+    configure_mlflow()
+    out = predict_shadow(
+        ctx.engine or db.get_engine(),
+        _serve_snapshot(ctx),
+        load_series(),
+        ctx.run_date,
+        ctx.run_id,
+        ctx.dry_run,
+    )
+    return StepResult(
+        "shadow",
+        metrics={"rows": len(out), "classes": out["pred_class"].value_counts().to_dict()},
+    )
+
+
+def run_evaluate(ctx: RunContext) -> StepResult:
+    """Matured forecasts / shadow predictions vs actuals -> model_metrics (split='live')."""
+    engine = ctx.engine or db.get_engine()
+    price = price_live_metrics(matured_forecasts(engine, ctx.run_date))
+    ev = shadow_evaluation(matured_shadow(engine, ctx.run_date, spec_hash(load_series())))
+    shadow_rows = shadow_metric_rows(ev)
+    if not ctx.dry_run:
+        version = (
+            alias_version(MlflowClient(), price_model_name(7), "champion")
+            if (settings.mlflow_tracking_uri)
+            else None
+        )
+        db.insert_model_metrics(
+            price.assign(model_name="champion", model_version=version), ctx.run_id, "live", engine
+        )
+        db.insert_model_metrics(
+            shadow_rows.assign(model_name="move-h7-shadow", model_version=None),
+            ctx.run_id,
+            "live",
+            engine,
+        )
+    allh = price[price["commodity"] == "all"] if len(price) else price
+    metrics: dict[str, Any] = {
+        "price_rows": len(price),
+        "shadow_evaluated": int(ev["n"].sum()),
+        "shadow_verdicts": dict(zip(ev["crop"], ev["verdict"], strict=True)),
+    }
+    for r in allh.to_dict("records"):
+        if r["metric"] == "mape_28d":
+            metrics[f"h{r['horizon']}_mape_28d"] = round(float(r["value"]), 3)
+            metrics[f"h{r['horizon']}_naive_mape_28d"] = round(float(r["naive_value"]), 3)
+    return StepResult("evaluate", metrics=metrics)
+
+
+def run_promotion_check(ctx: RunContext) -> StepResult:
+    """Weekly: judge the move challenger strictly per reports/preregistration_e4a.md."""
+    engine = ctx.engine or db.get_engine()
+    configure_mlflow()
+    client = MlflowClient()
+    version = alias_version(client, MOVE_MODEL, "challenger")
+    ev = shadow_evaluation(matured_shadow(engine, ctx.run_date, spec_hash(load_series())))
+    verdicts = {}
+    for r in ev.to_dict("records"):
+        crop, verdict = str(r["crop"]), str(r["verdict"])
+        verdicts[crop] = verdict
+        if ctx.dry_run:
+            continue
+        reason = (
+            f"live shadow evaluation ({r.get('n', 0)} predictions, {r.get('n_moves', 0)} moves, "
+            f"{r.get('days_covered', 0)} days): {verdict}"
+        )
+        record(
+            engine,
+            Decision(
+                MOVE_MODEL,
+                crop,
+                verdict,
+                reason,
+                challenger_version=version,
+                champion_version=alias_version(client, MOVE_MODEL, f"champion_{crop}"),
+                metrics={str(k): v for k, v in r.items() if k != "crop"},
+            ),
+            ctx.run_id,
+        )
+        if verdict == "pass" and version is not None:
+            set_alias(client, MOVE_MODEL, f"champion_{crop}", version)
+            send_admin_message(
+                f"cropcast: move classifier PASSED the pre-registered live test for {crop} "
+                f"(v{version}). Alerts stay off until move_alerts_enabled is set."
+            )
+    return StepResult("promotion_check", metrics={"challenger": version, "verdicts": verdicts})
+
+
+def run_notify(ctx: RunContext) -> StepResult:
+    """Telegram Stage 1: one daily channel post (idempotent) + subscriber count."""
+    engine = ctx.engine or db.get_engine()
+    res = notify(engine, ctx.run_date, dry_run=ctx.dry_run)
+    if res.status == "dry_run":
+        print(res.text)  # the post itself is the dry-run output
+    metrics: dict[str, Any] = {
+        "status": res.status,
+        "reason": res.reason,
+        "message_id": res.message_id,
+    }
+    if not ctx.dry_run:
+        try:
+            metrics["members"] = record_member_count(engine, ctx.run_date)
+        except Exception as exc:  # the count is informational; never fail the run for it
+            log.warning("member count failed", extra={"error": repr(exc)})
+    return StepResult("notify", metrics=metrics)
 
 
 STEPS: dict[str, Callable[[RunContext], StepResult]] = {
@@ -355,6 +524,12 @@ STEPS: dict[str, Callable[[RunContext], StepResult]] = {
     "validate": run_validate,
     "weather": run_weather,
     "clean": run_clean,
+    "retrain": run_retrain,
+    "predict": run_predict,
+    "shadow": run_shadow,
+    "evaluate": run_evaluate,
+    "promotion_check": run_promotion_check,
+    "notify": run_notify,
     "archive": run_archive,
     "features": run_features,
     "train": run_train,
@@ -362,7 +537,7 @@ STEPS: dict[str, Callable[[RunContext], StepResult]] = {
 }
 # `--steps all` = the daily data pipeline. Model steps are run explicitly (Phase 3 adds
 # them to the daily workflow together with the promotion gate).
-DAILY_STEPS = ["ingest", "validate", "weather", "clean"]
+DAILY_STEPS = ["ingest", "validate", "weather", "clean", "predict", "shadow", "evaluate", "notify"]
 ALL_STEPS = list(STEPS)
 
 

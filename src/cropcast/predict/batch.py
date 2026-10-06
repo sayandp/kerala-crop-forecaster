@@ -1,0 +1,193 @@
+"""Daily batch predictions (no online inference).
+
+* predict: `cropcast-price-h{h}@champion` for every modelled series x h in {1, 7, 14}
+  -> forecasts (p10/p50/p90, model name + version, run_id).
+* shadow: `cropcast-move-h7@challenger` for the pre-registered crops -> shadow_predictions.
+  Refuses to run unless reports/preregistration_e4a.md is committed (records its commit).
+
+Both are idempotent per forecast date: rows are INSERT ... ON CONFLICT DO NOTHING, so a
+re-run never changes a prediction that was already made (no peeking at later data).
+"""
+
+from __future__ import annotations
+
+import logging
+import subprocess
+from datetime import date
+from typing import Any
+
+import mlflow
+import pandas as pd
+from mlflow import MlflowClient
+from sqlalchemy import Engine, text
+
+from cropcast.config import PROJECT_ROOT
+from cropcast.db import _records_any
+from cropcast.features.build import build_features
+from cropcast.features.series import Series
+from cropcast.features.snapshot import Snapshot
+from cropcast.models.move import CLASSES, HORIZON, JUDGED_CROPS, spec_hash, trend_class
+from cropcast.models.training import HORIZONS
+from cropcast.registry.promote import MOVE_MODEL, alias_version, price_model_name
+
+log = logging.getLogger(__name__)
+
+PREREG_PATH = "reports/preregistration_e4a.md"
+
+
+def origin_rows(snap: Snapshot, series: list[Series], run_date: date, horizon: int) -> pd.DataFrame:
+    """Feature rows whose origin is the run date (one per live series)."""
+    f = build_features(snap.prices, snap.weather, run_date, horizon, series)
+    return f[pd.to_datetime(f["origin_date"]) == pd.Timestamp(run_date)].reset_index(drop=True)
+
+
+def _load(name: str, alias: str) -> tuple[Any, str]:
+    version = alias_version(MlflowClient(), name, alias)
+    if version is None:
+        raise RuntimeError(f"no {name}@{alias} in the registry; run the weekly retrain first")
+    return mlflow.pyfunc.load_model(f"models:/{name}@{alias}"), version
+
+
+def predict_prices(
+    engine: Engine,
+    snap: Snapshot,
+    series: list[Series],
+    run_date: date,
+    run_id: int | None,
+    dry_run: bool = False,
+) -> pd.DataFrame:
+    frames = []
+    for h in HORIZONS:
+        name = price_model_name(h)
+        model, version = _load(name, "champion")
+        rows = origin_rows(snap, series, run_date, h)
+        pred = model.predict(rows)
+        frames.append(
+            rows[["commodity", "market", "variety", "origin_date", "target_date", "last_value"]]
+            .astype({"commodity": str, "market": str, "variety": str})
+            .assign(
+                horizon=h,
+                p10=pred["p10"].round(2),
+                p50=pred["p50"].round(2),
+                p90=pred["p90"].round(2),
+                model_name=name,
+                model_version=version,
+                run_id=run_id,
+            )
+            .rename(columns={"origin_date": "forecast_date"})
+        )
+    out = pd.concat(frames, ignore_index=True)
+    if not dry_run:
+        cols = (
+            "run_id",
+            "forecast_date",
+            "target_date",
+            "horizon",
+            "commodity",
+            "market",
+            "variety",
+            "p10",
+            "p50",
+            "p90",
+            "last_value",
+            "model_name",
+            "model_version",
+        )
+        with engine.begin() as conn:
+            conn.execute(
+                text(
+                    f"INSERT INTO forecasts ({', '.join(cols)}) VALUES "
+                    f"({', '.join(':' + c for c in cols)}) "
+                    "ON CONFLICT (forecast_date, horizon, commodity, market, variety) DO NOTHING"
+                ),
+                _records_any(out, cols),
+            )
+    return out
+
+
+def prereg_commit() -> str:
+    """Commit SHA that added the pre-registration (empty if not committed)."""
+    try:
+        res = subprocess.run(
+            ["git", "log", "--diff-filter=A", "--format=%H", "--", PREREG_PATH],
+            cwd=PROJECT_ROOT,
+            capture_output=True,
+            text=True,
+            check=True,
+            timeout=30,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return ""
+    lines = res.stdout.strip().splitlines()
+    return lines[-1] if lines else ""
+
+
+def predict_shadow(
+    engine: Engine,
+    snap: Snapshot,
+    series: list[Series],
+    run_date: date,
+    run_id: int | None,
+    dry_run: bool = False,
+) -> pd.DataFrame:
+    commit = prereg_commit()
+    if not commit:
+        raise RuntimeError(
+            f"{PREREG_PATH} is not committed (or git history is shallow): shadow predictions "
+            "may only be made after the pre-registration commit"
+        )
+    model, version = _load(MOVE_MODEL, "challenger")
+    tags = MlflowClient().get_model_version(MOVE_MODEL, version).tags
+    current = spec_hash(series)
+    if tags.get("spec_hash") != current:
+        raise RuntimeError(
+            f"{MOVE_MODEL} v{version} spec {tags.get('spec_hash')} != code spec {current}: "
+            "retrain before making shadow predictions"
+        )
+    rows = origin_rows(snap, series, run_date, HORIZON)
+    rows = rows[rows["commodity"].astype(str).isin(JUDGED_CROPS)].reset_index(drop=True)
+    pred = model.predict(rows)
+    out = (
+        rows[["commodity", "market", "variety", "origin_date", "target_date", "last_value"]]
+        .astype({"commodity": str, "market": str, "variety": str})
+        .rename(columns={"origin_date": "forecast_date"})
+    )
+    out = out.assign(
+        pred_class=pred["pred_class"].to_numpy(),
+        p_down=pred["p_down"].to_numpy(),
+        p_flat=pred["p_flat"].to_numpy(),
+        p_up=pred["p_up"].to_numpy(),
+        trend_class=[CLASSES[i] for i in trend_class(rows)],
+        model_version=version,
+        spec_hash=current,
+        prereg_commit=commit,
+        run_id=run_id,
+    )
+    if not dry_run:
+        cols = (
+            "forecast_date",
+            "target_date",
+            "commodity",
+            "market",
+            "variety",
+            "pred_class",
+            "p_down",
+            "p_flat",
+            "p_up",
+            "trend_class",
+            "last_value",
+            "model_version",
+            "spec_hash",
+            "prereg_commit",
+            "run_id",
+        )
+        with engine.begin() as conn:
+            conn.execute(
+                text(
+                    f"INSERT INTO shadow_predictions ({', '.join(cols)}) VALUES "
+                    f"({', '.join(':' + c for c in cols)}) "
+                    "ON CONFLICT (forecast_date, commodity, market, variety) DO NOTHING"
+                ),
+                _records_any(out, cols),
+            )
+    return out

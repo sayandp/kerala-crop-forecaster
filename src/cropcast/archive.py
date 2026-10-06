@@ -18,7 +18,7 @@ import shutil
 import subprocess
 import tempfile
 from dataclasses import dataclass
-from datetime import date
+from datetime import date, timedelta
 from pathlib import Path
 
 import pandas as pd
@@ -29,7 +29,25 @@ from cropcast.config import settings
 log = logging.getLogger(__name__)
 
 TAG_PREFIX = "data-archive-"
-FILE_GLOB = "prices_raw_*.parquet"
+FILE_GLOB = "*.parquet"
+
+
+@dataclass(frozen=True)
+class TableSpec:
+    table: str
+    date_col: str
+    checksum_col: str  # numeric column summed per year as a content check
+    keep_days: int
+    tag_prefix: str
+
+
+TABLES: dict[str, TableSpec] = {
+    "prices_raw": TableSpec("prices_raw", "date", "modal_price", 90, "data-archive-"),
+    "forecasts": TableSpec("forecasts", "forecast_date", "p50", 180, "forecasts-archive-"),
+    "shadow_predictions": TableSpec(
+        "shadow_predictions", "forecast_date", "p_up", 180, "shadow-archive-"
+    ),
+}
 
 
 def archive_root() -> Path:
@@ -50,6 +68,20 @@ def _gh(*args: str, check: bool = True) -> subprocess.CompletedProcess[str]:
     return subprocess.run(["gh", *args], capture_output=True, text=True, check=check, timeout=600)
 
 
+def read_table_before(engine: Engine, spec: TableSpec, cutoff: date) -> pd.DataFrame:
+    with engine.connect() as conn:
+        df = pd.read_sql(
+            text(f"SELECT * FROM {spec.table} WHERE {spec.date_col} < :c ORDER BY {spec.date_col}"),
+            conn,
+            params={"c": cutoff},
+        )
+    num = df.select_dtypes(include="object").columns
+    for col in num:  # NUMERIC columns arrive as Decimal: store as float in parquet
+        if len(df) and df[col].map(type).astype(str).str.contains("Decimal").any():
+            df[col] = df[col].astype(float)
+    return df
+
+
 def read_rows_before(engine: Engine, cutoff: date) -> pd.DataFrame:
     with engine.connect() as conn:
         return pd.read_sql(
@@ -65,26 +97,34 @@ def read_rows_before(engine: Engine, cutoff: date) -> pd.DataFrame:
         )
 
 
-def _per_year(df: pd.DataFrame) -> pd.DataFrame:
-    years = pd.to_datetime(df["date"]).dt.year
-    return df.groupby(years).agg(rows=("modal_price", "size"), modal_sum=("modal_price", "sum"))
+def _per_year(
+    df: pd.DataFrame, date_col: str = "date", checksum_col: str = "modal_price"
+) -> pd.DataFrame:
+    years = pd.to_datetime(df[date_col]).dt.year
+    return df.groupby(years).agg(
+        rows=(checksum_col, "size"), modal_sum=(checksum_col, lambda c: c.astype(float).sum())
+    )
 
 
-def write_parquet(rows: pd.DataFrame, tag: str) -> list[Path]:
+def write_parquet(
+    rows: pd.DataFrame, tag: str, table: str = "prices_raw", date_col: str = "date"
+) -> list[Path]:
     out = archive_root() / tag
     out.mkdir(parents=True, exist_ok=True)
     paths = []
-    for year, part in rows.groupby(pd.to_datetime(rows["date"]).dt.year):
-        path = out / f"prices_raw_{year}.parquet"
+    for year, part in rows.groupby(pd.to_datetime(rows[date_col]).dt.year):
+        path = out / f"{table}_{year}.parquet"
         part.to_parquet(path, index=False)
         paths.append(path)
     return paths
 
 
-def upload_release(tag: str, files: list[Path], cutoff: date, rows: int) -> None:
+def upload_release(
+    tag: str, files: list[Path], cutoff: date, rows: int, table: str = "prices_raw"
+) -> None:
     notes = (
-        f"prices_raw rows dated before {cutoff} ({rows:,} rows), archived from Neon to stay "
-        "within the free tier. Yearly parquet; columns as in sql/schema.sql (prices_raw). "
+        f"{table} rows dated before {cutoff} ({rows:,} rows), archived from Neon to stay "
+        f"within the free tier. Yearly parquet; columns as in sql/schema.sql ({table}). "
         "Prices Rs./quintal, arrivals metric tonnes."
     )
     _gh("release", "create", tag, *map(str, files), "--title", tag, "--notes", notes)
@@ -96,12 +136,18 @@ def download_release(tag: str, dest: Path) -> list[Path]:
     return sorted(dest.glob(FILE_GLOB))
 
 
-def verify_release(tag: str, expected: pd.DataFrame) -> None:
-    """Download the release back and compare per-year row counts + modal checksums."""
+def verify_release(
+    tag: str, expected: pd.DataFrame, date_col: str = "date", checksum_col: str = "modal_price"
+) -> None:
+    """Download the release back and compare per-year row counts + value checksums."""
     with tempfile.TemporaryDirectory() as tmp:
         files = download_release(tag, Path(tmp))
-        got = _per_year(pd.concat([pd.read_parquet(f) for f in files], ignore_index=True))
-    want = _per_year(expected)
+        got = _per_year(
+            pd.concat([pd.read_parquet(f) for f in files], ignore_index=True),
+            date_col,
+            checksum_col,
+        )
+    want = _per_year(expected, date_col, checksum_col)
     if (
         not got["rows"].equals(want["rows"])
         or not ((got["modal_sum"] - want["modal_sum"]).abs() < 0.01).all()
@@ -110,10 +156,16 @@ def verify_release(tag: str, expected: pd.DataFrame) -> None:
     log.info("archive verified", extra={"tag": tag, "per_year_rows": want["rows"].to_dict()})
 
 
-def delete_and_vacuum(engine: Engine, cutoff: date, expected_rows: int) -> None:
+def delete_and_vacuum(
+    engine: Engine,
+    cutoff: date,
+    expected_rows: int,
+    table: str = "prices_raw",
+    date_col: str = "date",
+) -> None:
     with engine.begin() as conn:
         deleted = conn.execute(
-            text("DELETE FROM prices_raw WHERE date < :c"), {"c": cutoff}
+            text(f"DELETE FROM {table} WHERE {date_col} < :c"), {"c": cutoff}
         ).rowcount
         if deleted != expected_rows:
             raise RuntimeError(
@@ -121,17 +173,17 @@ def delete_and_vacuum(engine: Engine, cutoff: date, expected_rows: int) -> None:
             )
     # VACUUM FULL returns the space to the OS (plain DELETE would leave the table size as is).
     with engine.connect().execution_options(isolation_level="AUTOCOMMIT") as conn:
-        conn.execute(text("VACUUM FULL prices_raw"))
+        conn.execute(text(f"VACUUM FULL {table}"))
 
 
-def record(engine: Engine, result: ArchiveResult) -> None:
+def record(engine: Engine, result: ArchiveResult, table: str = "prices_raw") -> None:
     with engine.begin() as conn:
         conn.execute(
             text(
-                "INSERT INTO archive_log (release_tag, cutoff_date, rows) "
-                "VALUES (:t, :c, :r) ON CONFLICT (release_tag) DO NOTHING"
+                "INSERT INTO archive_log (release_tag, cutoff_date, rows, table_name) "
+                "VALUES (:t, :c, :r, :tb) ON CONFLICT (release_tag) DO NOTHING"
             ),
-            {"t": result.tag, "c": result.cutoff, "r": result.rows},
+            {"t": result.tag, "c": result.cutoff, "r": result.rows, "tb": table},
         )
 
 
@@ -161,6 +213,29 @@ def archive_prices_raw(
     return result
 
 
+def archive_table(
+    engine: Engine, table: str, run_date: date, dry_run: bool = False
+) -> ArchiveResult:
+    """Retention for any table in TABLES: rows older than keep_days -> release -> delete."""
+    spec = TABLES[table]
+    cutoff = run_date - timedelta(days=spec.keep_days)
+    tag = f"{spec.tag_prefix}{run_date}"
+    if table == "prices_raw":
+        return archive_prices_raw(engine, cutoff, tag, dry_run=dry_run)
+    rows = read_table_before(engine, spec, cutoff)
+    if rows.empty:
+        return ArchiveResult(tag, cutoff, 0, [])
+    files = write_parquet(rows, tag, table, spec.date_col)
+    result = ArchiveResult(tag, cutoff, len(rows), files)
+    if dry_run:
+        return result
+    upload_release(tag, files, cutoff, len(rows), table)
+    verify_release(tag, rows, spec.date_col, spec.checksum_col)
+    delete_and_vacuum(engine, cutoff, len(rows), table, spec.date_col)
+    record(engine, result, table)
+    return result
+
+
 # --- reading the archive back (clean --full) ---------------------------------------------
 
 
@@ -168,7 +243,12 @@ def archived_tags(engine: Engine) -> list[str]:
     with engine.connect() as conn:
         return [
             r[0]
-            for r in conn.execute(text("SELECT release_tag FROM archive_log ORDER BY cutoff_date"))
+            for r in conn.execute(
+                text(
+                    "SELECT release_tag FROM archive_log WHERE table_name = 'prices_raw' "
+                    "ORDER BY cutoff_date"
+                )
+            )
         ]
 
 

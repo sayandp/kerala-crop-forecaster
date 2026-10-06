@@ -109,6 +109,7 @@ class Settings(BaseSettings):
     # --- Telegram ---
     telegram_bot_token: SecretStr | None = None
     telegram_admin_chat_id: str | None = None
+    telegram_channel_id: str | None = None  # public channel for the daily Stage-1 post
 
     @property
     def cache_dir(self) -> Path:

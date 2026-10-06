@@ -1,0 +1,11 @@
+# English channel text (second line of every item). Same placeholders as ml.yaml.
+header: "Kerala market prices · {date}"
+crops:
+  banana: "Nendran banana"
+  coconut: "Coconut"
+  pepper: "Black pepper"
+  rubber: "Rubber"
+  tapioca: "Tapioca"
+line: "{market}: today ₹{price}/kg · expected in 7 days ₹{lo}–{hi}"
+line_stale: "{market}: ₹{price}/kg on {obs_date} · expected in 7 days ₹{lo}–{hi}"  # latest price is not from today
+footer: "Source: Agmarknet modal prices (₹/quintal ÷ 100). A range, not a guarantee. {repo}"
