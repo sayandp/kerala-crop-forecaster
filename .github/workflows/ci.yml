@@ -100,3 +100,35 @@ jobs:
           docker stats --no-stream api
           test "$code" != "000"
           awk "BEGIN { exit !($secs < 20) }"
+
+  web:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 12.9.1
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: lts/*
+          cache: pnpm
+          cache-dependency-path: web/pnpm-lock.yaml
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      # No DATABASE_URL_RO in CI: pages build with empty states (filled by ISR on Vercel).
+      - name: Build
+        run: pnpm build

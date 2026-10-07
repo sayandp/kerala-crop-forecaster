@@ -1,0 +1,101 @@
+{
+  "site": {
+    "title": "Kerala crop prices",
+    "tagline": "Daily mandi prices and the price expected in 7 days for banana, coconut, pepper, rubber and tapioca."
+  },
+  "nav": {
+    "prices": "Prices",
+    "accuracy": "Accuracy",
+    "models": "Models",
+    "challenger": "Challenger",
+    "drift": "Drift",
+    "health": "Health",
+    "lang": "മലയാളം"
+  },
+  "crops": {
+    "banana": "Nendran banana",
+    "coconut": "Coconut",
+    "pepper": "Black pepper",
+    "rubber": "Rubber",
+    "tapioca": "Tapioca"
+  },
+  "prices": {
+    "pick": "Crop and market",
+    "latest": "Latest price",
+    "range7": "Expected in 7 days",
+    "range": "Expected range (p10–p90)",
+    "asOf": "As of",
+    "observed": "Price observed on",
+    "stale": "Stale: no new price for more than 3 days",
+    "fresh": "Fresh",
+    "perKg": "per kg",
+    "history": "Last 90 days and the expected range",
+    "horizon": "In {h} days",
+    "subscribe": "Get the daily update on Telegram",
+    "subscribeCta": "Join the channel",
+    "note": "A range, not a guarantee. Source: Agmarknet modal prices (₹/quintal ÷ 100)."
+  },
+  "accuracy": {
+    "title": "How accurate is it?",
+    "intro": "Live error of the published forecast (rolling 28 days) against the simplest forecast: the price in a week = today's price (\"naive\").",
+    "mape": "Error (MAPE, %)",
+    "champion": "Published forecast",
+    "naive": "Naive (last price)",
+    "coverage": "How often the price fell inside the range",
+    "target": "Target 80 %",
+    "whyTitle": "Why is the published forecast the naive one?",
+    "why": "We tested a machine-learning model (LightGBM) with many signals: arrivals, Tamil Nadu and Karnataka market prices, weather and festivals. Over two years of back-tests none beat \"last price\" for the price level, so we publish the honest naive forecast and use the model only for the uncertainty range.",
+    "report": "Read the Phase 2.5 report",
+    "backtest": "Back-test error (MAPE, %)",
+    "noData": "Live accuracy appears once forecasts mature (7+ days)."
+  },
+  "models": {
+    "title": "Models and decisions",
+    "intro": "Every promotion decision is logged with its evidence. A challenger replaces the champion only if it beats it by at least 3 % with statistical significance (p < 0.05).",
+    "model": "Model",
+    "scope": "Scope",
+    "decision": "Decision",
+    "champion": "Champion",
+    "challenger": "Challenger",
+    "reason": "Evidence",
+    "when": "When",
+    "registry": "Model registry on DagsHub"
+  },
+  "challenger": {
+    "title": "The shadow challenger",
+    "intro": "A classifier predicts whether a price will rise or fall by more than 3 % in 7 days. It runs in shadow (never shown to users) and is judged only on new data, by rules fixed in advance.",
+    "criteria": "Pre-registered criteria",
+    "c1": "At least 12 weeks of shadow data and 30 real moves per crop",
+    "c2": "Beats both \"always flat\" and \"trend continues\" (balanced Diebold–Mariano test, Holm-corrected, p < 0.05)",
+    "c3": "Up and down calls each right at least 55 % of the time and 10 points above the base rate",
+    "progress": "Evidence so far",
+    "weeks": "weeks",
+    "moves": "moves",
+    "predictions": "predictions",
+    "verdict": "Verdict",
+    "prereg": "Read the pre-registration"
+  },
+  "drift": {
+    "title": "Data drift",
+    "intro": "Every Sunday the last 14 days of model inputs are compared with the 90 days before (Evidently). Calendar inputs are left out: they change with the date by design.",
+    "share": "Share of inputs that drifted",
+    "target": "Weekly price-change distribution",
+    "drifted": "Drifted",
+    "stable": "Stable",
+    "escalated": "Escalated to the maintainer",
+    "report": "Open the full report",
+    "none": "No drift report yet."
+  },
+  "health": {
+    "title": "System health",
+    "runs": "Daily pipeline runs",
+    "db": "Database size (MB, free tier 512)",
+    "subs": "Telegram subscribers",
+    "lastOk": "Last successful run"
+  },
+  "common": {
+    "noData": "No data yet.",
+    "repo": "Source code",
+    "updated": "Updated hourly"
+  }
+}
