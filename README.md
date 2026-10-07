@@ -12,7 +12,7 @@ an API and a Telegram channel.
 
 **[Dashboard](https://kerala-crop-forecaster.vercel.app)** ·
 **[API docs](https://cropcast-api.onrender.com/docs)** ·
-**[Telegram channel](https://t.me/)** ·
+**[Telegram channel](https://t.me/keralavipanivila)** ·
 **[MLflow on DagsHub](https://dagshub.com/sayandp/kerala-crop-forecaster.mlflow)** ·
 **[Phase 2.5 report](reports/phase2_5_signal_hunt.md)** ·
 **[Pre-registration](reports/preregistration_e4a.md)**

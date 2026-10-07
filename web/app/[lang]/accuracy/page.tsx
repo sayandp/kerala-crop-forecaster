@@ -46,7 +46,7 @@ export default async function Accuracy({ params }: LangParams) {
         {live7.length > 0 && (
           <Section title={t.coverage}>
             <TrendChart
-              data={live7.map((r) => ({ d: r.d, coverage: r.coverage === null ? null : r.coverage * 100 }))}
+              data={live7.map((r) => ({ d: r.d, coverage: r.coverage }))}
               series={[{ key: "coverage", label: t.coverage, color: "var(--color-good)" }]}
               reference={{ y: 80, label: t.target }}
               unit="%"

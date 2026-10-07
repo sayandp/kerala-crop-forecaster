@@ -26,5 +26,5 @@ export function daysBetween(a: string, b: string): number {
 export const STALE_DAYS = 3;
 
 export const REPO = "https://github.com/sayandp/kerala-crop-forecaster";
-export const TELEGRAM_CHANNEL = process.env.NEXT_PUBLIC_TELEGRAM_CHANNEL_URL ?? "https://t.me/";
+export const TELEGRAM_CHANNEL = process.env.NEXT_PUBLIC_TELEGRAM_CHANNEL_URL ?? "https://t.me/keralavipanivila";
 export const DAGSHUB = "https://dagshub.com/sayandp/kerala-crop-forecaster";
