@@ -71,3 +71,28 @@ The class-balanced loss was chosen **after** seeing the Phase 2.5 backtest (plai
 dominated by the majority "flat" class: accuracy 56.5 % vs 56.4 % for always-flat, while
 macro-F1 was 0.52 vs 0.24). Because the choice was informed by those results, the classifier is
 judged **only on new, live data** under this pre-registered test.
+
+---
+
+## Amendment 1 — 2026-10-07 (clarifications; no test, threshold or window changed)
+
+*Written when 12 shadow predictions existed (all made 2026-10-07, first target date
+2026-10-14): **no outcome had matured**, so nothing observed could inform these clarifications.*
+
+Already stated in the original text (commit `cf555f5`), restated here for completeness:
+
+- **Class weights:** `w_c = 1 / (3 · p_c)`, `p_c` = realised share of class `c` among the crop's
+  evaluated predictions (§3).
+- **Holm per baseline:** Holm across the 4 crops, applied separately to the always-flat and the
+  trend-persistence comparison; a crop must survive both (§3).
+- **Spec-hash window:** only predictions whose spec hash equals the current spec count; any spec
+  change resets the window; identical-spec weekly refits continue it (§1).
+
+New clarifications (implemented in `cropcast.monitor.live`, matching the code that ran from the
+first shadow prediction):
+
+- **Undefined test = p = 1:** if a crop's DM statistic is undefined (fewer than 10 distinct matured
+  target dates, or a zero-variance loss differential), its p-value enters the Holm procedure as
+  **1** (conservative), so it can never be "significant".
+- **DM minimum:** the DM test is computed only with ≥ 10 distinct matured target dates; this is
+  far below the ≥ 12-week minimum evidence, so it never decides a verdict on its own.
