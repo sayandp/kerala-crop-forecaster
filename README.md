@@ -128,7 +128,8 @@ writes there. The local Postgres (`D:\pg`, `scripts/pg_local.ps1`) is for develo
 
 1. Add a free **HTTP(s)** monitor on `https://cropcast-api-21tx.onrender.com/health` at a 10-minute
    interval.
-2. Use keyword `"db_ok":true`, or just the status: `/health` returns 503 when Neon is unreachable.
+2. Use keyword monitoring for `"db_ok":true`. `/health` always returns 200 so Render's own check
+   passes; a Neon outage shows as `"db_ok":false` (logged with the cause).
 3. Alert contact: your email or Telegram.
 
 A 10-minute ping keeps the free instance awake (744 h/month fits the 750 free instance-hours).

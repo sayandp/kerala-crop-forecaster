@@ -197,7 +197,9 @@ Never hardcode secrets. Never commit `.env`. Read env only via `cropcast.config.
 ## API contract (FastAPI)
 
 Built (Phase 4, `api/main.py`; reads tables only — never loads MLflow models):
-- `GET /health` (503 when the DB is down), `/crops`, `/markets`, `/forecast?crop=&market=&horizon=1|7|14`
+- Live: API `https://cropcast-api-21tx.onrender.com` (`/docs`), dashboard `https://kerala-crop-forecaster.vercel.app`;
+  UptimeRobot keyword monitor on `/health` (`"db_ok":true`, every 10 min).
+- `GET /health` (always 200 within 8 s for Render's check; `db_ok:false` + logged cause when Neon is down/slow), `/crops`, `/markets`, `/forecast?crop=&market=&horizon=1|7|14`
   (with a `stale` flag: last price > 3 days old), `/history?crop=&market=&days=90`, `/metrics` (live MAPE
   next to naive + shadow progress), `/badge/{coverage,subscribers}.json` (shields.io endpoint badges).
 - Pydantic response models; 10-min TTL cache; 60 req/min/IP (slowapi); CORS GET-only for the Vercel origin.
@@ -301,7 +303,9 @@ Rules:
 - [x] 3. Registry + promotion gate + batch predict → Postgres ("serve honestly": naive champion + LGBM band,
       shadow move classifier under `reports/preregistration_e4a.md`, Telegram Stage 1 channel post, retention)
 - [x] 4. Serve + observe: read-only role, FastAPI on Render (Docker), Next.js dashboard on Vercel (ISR +
-      revalidate step), weekly Evidently drift + escalation, README overhaul (Streamlit replaced by Vercel)
+      revalidate step), weekly Evidently drift + escalation, README overhaul (Streamlit replaced by Vercel).
+      Live since 2026-10-08: API https://cropcast-api-21tx.onrender.com, dashboard
+      https://kerala-crop-forecaster.vercel.app, Telegram https://t.me/keralavipanivila
 - [ ] 5. Telegram bot (Stage 2) — drift + live accuracy already done in Phases 3–4
 - [ ] 6. CI/CD polish, README (diagram, live MAPE badge), user acquisition
 
