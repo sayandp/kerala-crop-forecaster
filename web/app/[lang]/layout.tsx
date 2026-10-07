@@ -8,7 +8,9 @@ import { SITE_URL, langStaticParams, resolveLang, type LangParams } from "@/lib/
 const noto = Noto_Sans_Malayalam({
   subsets: ["malayalam", "latin"],
   weight: ["400", "700"],
-  display: "swap",
+  // "optional": no late swap repaint (it delayed LCP by ~2.5 s on mobile). Android ships Noto Sans
+  // Malayalam as the system font, so a first visit on a slow network still renders Malayalam well.
+  display: "optional",
   variable: "--font-malayalam",
 });
 

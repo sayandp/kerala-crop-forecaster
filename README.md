@@ -2,8 +2,8 @@
 
 [![daily pipeline](https://github.com/sayandp/kerala-crop-forecaster/actions/workflows/daily_pipeline.yml/badge.svg)](https://github.com/sayandp/kerala-crop-forecaster/actions/workflows/daily_pipeline.yml)
 [![ci](https://github.com/sayandp/kerala-crop-forecaster/actions/workflows/ci.yml/badge.svg)](https://github.com/sayandp/kerala-crop-forecaster/actions/workflows/ci.yml)
-[![p10–p90 coverage](https://img.shields.io/endpoint?url=https%3A%2F%2Fcropcast-api.onrender.com%2Fbadge%2Fcoverage.json)](https://kerala-crop-forecaster.vercel.app/accuracy)
-[![Telegram subscribers](https://img.shields.io/endpoint?url=https%3A%2F%2Fcropcast-api.onrender.com%2Fbadge%2Fsubscribers.json)](https://kerala-crop-forecaster.vercel.app/health)
+[![p10–p90 coverage](https://img.shields.io/endpoint?url=https%3A%2F%2Fcropcast-api-21tx.onrender.com%2Fbadge%2Fcoverage.json)](https://kerala-crop-forecaster.vercel.app/accuracy)
+[![Telegram subscribers](https://img.shields.io/endpoint?url=https%3A%2F%2Fcropcast-api-21tx.onrender.com%2Fbadge%2Fsubscribers.json)](https://kerala-crop-forecaster.vercel.app/health)
 
 A self-retraining MLOps system for daily mandi prices of five Kerala crops: Nendran banana,
 coconut, black pepper, rubber RSS-4 and tapioca. It runs every evening on free tiers (₹0). It
@@ -11,7 +11,7 @@ publishes today's price and the range expected in 7 days, in Malayalam first, on
 an API and a Telegram channel.
 
 **[Dashboard](https://kerala-crop-forecaster.vercel.app)** ·
-**[API docs](https://cropcast-api.onrender.com/docs)** ·
+**[API docs](https://cropcast-api-21tx.onrender.com/docs)** ·
 **[Telegram channel](https://t.me/keralavipanivila)** ·
 **[MLflow on DagsHub](https://dagshub.com/sayandp/kerala-crop-forecaster.mlflow)** ·
 **[Phase 2.5 report](reports/phase2_5_signal_hunt.md)** ·
@@ -126,7 +126,7 @@ writes there. The local Postgres (`D:\pg`, `scripts/pg_local.ps1`) is for develo
 
 ## Monitoring the API (UptimeRobot)
 
-1. Add a free **HTTP(s)** monitor on `https://cropcast-api.onrender.com/health` at a 10-minute
+1. Add a free **HTTP(s)** monitor on `https://cropcast-api-21tx.onrender.com/health` at a 10-minute
    interval.
 2. Use keyword `"db_ok":true`, or just the status: `/health` returns 503 when Neon is unreachable.
 3. Alert contact: your email or Telegram.

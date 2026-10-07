@@ -37,7 +37,12 @@ export default async function Home({ params }: LangParams) {
               rows={all.map((o) => {
                 const stale = !o.last_observed || daysBetween(o.last_observed, o.as_of) > STALE_DAYS;
                 return [
-                  <Link key="l" className="underline" href={href(lang, seriesPath(o.commodity, o.market))}>
+                  <Link
+                    key="l"
+                    className="underline"
+                    href={href(lang, seriesPath(o.commodity, o.market))}
+                    prefetch={false}
+                  >
                     {cropName(lang, o.commodity)} · {o.market}
                   </Link>,
                   <span key="p" className={stale ? "text-muted" : ""}>
