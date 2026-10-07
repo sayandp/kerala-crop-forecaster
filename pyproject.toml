@@ -22,6 +22,10 @@ dependencies = [
     "optuna>=5.0.0",
     "matplotlib>=3.11.2",
     "statsmodels>=0.15.0",
+    "fastapi>=0.142.2",
+    "uvicorn>=0.54.0",
+    "slowapi>=0.1.10",
+    "evidently>=0.7.23",
 ]
 
 [dependency-groups]
