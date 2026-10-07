@@ -118,7 +118,9 @@ class Settings(BaseSettings):
         ]
     )
     api_cache_ttl_s: int = 600
-    api_db_timeout_s: float = 3.0  # /health answers within ~3 s even if Neon is slow
+    # DB connect/statement timeout and /health budget. 8 s covers a Neon scale-to-zero wake-up
+    # (+ TLS from Render Singapore); /health still answers 200 (db_ok=false) after it.
+    api_db_timeout_s: float = 8.0
     api_rate_limit: str = "60/minute"
 
     # --- Dashboard (Vercel) on-demand revalidation ---

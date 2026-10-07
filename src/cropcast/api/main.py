@@ -31,7 +31,9 @@ from cropcast.api.schemas import (
     ShadowProgress,
 )
 from cropcast.config import settings
+from cropcast.logging_setup import setup_logging
 
+setup_logging()  # structured JSON lines to stdout (Render logs); no file, no DB
 log = logging.getLogger(__name__)
 
 STALE_DAYS = 3
@@ -61,13 +63,20 @@ Market_ = Annotated[str, Query(min_length=2, max_length=60)]
 
 @app.get("/health", response_model=Health)
 def health() -> Health:
-    """Always 200 within ~3 s (Render's health check): the service is up even when Neon is
+    """Always 200 within ~api_db_timeout_s (8 s) (Render's health check): the service is up even when Neon is
     slow or down; that is reported as db_ok=false / status=degraded."""
     now = datetime.now(UTC)
     try:
         h = _health_pool.submit(q.health).result(timeout=settings.api_db_timeout_s)
     except Exception as exc:  # DB slow (TimeoutError) / unreachable: report, don't crash
-        log.warning("health: db unavailable", extra={"error": type(exc).__name__})
+        log.warning(
+            "health: db unavailable",
+            extra={
+                "error": type(exc).__name__,
+                "detail": q.redact(str(exc))[:500] or "timed out",
+                "timeout_s": settings.api_db_timeout_s,
+            },
+        )
         return Health(
             status="degraded",
             db_ok=False,

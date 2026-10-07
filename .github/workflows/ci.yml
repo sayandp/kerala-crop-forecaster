@@ -106,12 +106,12 @@ jobs:
           grep -q '"db_ok":true' /tmp/health.json
           awk "BEGIN { exit !($secs < 20) }"
 
-      # Neon unreachable / blackholed: /health must still answer 200 within 5 s (db_ok=false).
-      - name: /health within 5 s when the DB hangs
+      # Neon unreachable / blackholed: /health must still answer 200 within ~8 s (db_ok=false).
+      - name: /health within 10 s when the DB hangs
         run: |
           docker run -d --name api_nodb --memory=512m -e PORT=10000 -p 10001:10000             -e DATABASE_URL_RO=postgresql://u:p@10.255.255.1:5432/none cropcast-api:ci
           for i in $(seq 1 100); do curl -s -o /dev/null http://127.0.0.1:10001/docs && break; sleep 0.1; done
-          out=$(curl -s -m 5 -w ' HTTP %{http_code} in %{time_total}s' http://127.0.0.1:10001/health)
+          out=$(curl -s -m 10 -w ' HTTP %{http_code} in %{time_total}s' http://127.0.0.1:10001/health)
           echo "$out"
           echo "### /health with unreachable DB: $out" >> "$GITHUB_STEP_SUMMARY"
           echo "$out" | grep -q 'HTTP 200' && echo "$out" | grep -q '"db_ok":false'

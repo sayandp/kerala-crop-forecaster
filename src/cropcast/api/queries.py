@@ -5,6 +5,7 @@ Every function returns plain Python data and is cached for `api_cache_ttl_s` sec
 
 from __future__ import annotations
 
+import re
 import threading
 import time
 from collections.abc import Callable
@@ -42,13 +43,33 @@ def clear_cache() -> None:
         _cache.clear()
 
 
+_SCHEME = re.compile(r"^(postgres|postgresql)(\+\w+)?://")
+_PASSWORD = re.compile(r"(://[^:/@\s]+:)[^@\s]+@")
+
+
+def sqlalchemy_url(raw: str) -> str:
+    """Any libpq-style Postgres URL (the one Vercel/Neon hand out) -> SQLAlchemy + psycopg 3.
+
+    Accepts postgres://, postgresql://, postgresql+psycopg2:// and postgresql+psycopg://;
+    strips whitespace and surrounding quotes (a common paste artefact in dashboards)."""
+    url = raw.strip().strip("'\"").strip()
+    if not _SCHEME.match(url):
+        raise ValueError("DATABASE_URL_RO must start with postgres:// or postgresql://")
+    return _SCHEME.sub("postgresql+psycopg://", url, count=1)
+
+
+def redact(text_: str) -> str:
+    """Hide the password of any URL in an error message before it is logged."""
+    return _PASSWORD.sub(r"\1***@", text_)
+
+
 @lru_cache(maxsize=1)
 def engine() -> Engine:
     if not settings.database_url_ro:
         raise RuntimeError("DATABASE_URL_RO is not set (the API only uses the read-only role)")
-    url = settings.database_url_ro.replace("postgresql://", "postgresql+psycopg://", 1)
-    # Created lazily on the first request (no DB connection at import/startup). Timeouts keep
-    # /health fast when Neon is waking up or unreachable: connect and statement both <= ~3 s.
+    url = sqlalchemy_url(settings.database_url_ro)
+    # Created lazily on the first request (no DB connection at import/startup). Timeouts bound
+    # /health when Neon is waking up or unreachable (connect + statement <= api_db_timeout_s).
     timeout = settings.api_db_timeout_s
     return create_engine(
         url,

@@ -229,3 +229,45 @@ def test_openapi_docs_available(client: TestClient) -> None:
     spec = client.get("/openapi.json").json()
     assert {"/health", "/forecast", "/history", "/metrics"} <= set(spec["paths"])
     assert json.dumps(spec)  # serialisable
+
+
+NEON = "ep-x.ap-southeast-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require"
+
+
+@pytest.mark.parametrize(
+    "raw",
+    [
+        f"postgresql://ro:pw@{NEON}",  # what Vercel uses
+        f"postgresql+psycopg://ro:pw@{NEON}",
+        f"postgres://ro:pw@{NEON}",
+        f"postgresql+psycopg2://ro:pw@{NEON}",
+        f'  "postgresql://ro:pw@{NEON}"\n',  # pasted with quotes / newline
+    ],
+)
+def test_database_url_forms_normalise_to_psycopg3(raw: str) -> None:
+    url = q.sqlalchemy_url(raw)
+    assert url == f"postgresql+psycopg://ro:pw@{NEON}"
+    from sqlalchemy.engine import make_url
+
+    parsed = make_url(url)
+    assert parsed.get_dialect().driver == "psycopg"
+    assert parsed.query["channel_binding"] == "require"
+
+
+def test_bad_scheme_is_rejected() -> None:
+    with pytest.raises(ValueError):
+        q.sqlalchemy_url("mysql://ro:pw@host/db")
+
+
+def test_health_logs_redacted_error(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    def boom() -> None:
+        raise RuntimeError('connection to "postgresql://ro:s3cret@host/db" failed: timeout')
+
+    monkeypatch.setattr(q, "health", boom)
+    with caplog.at_level("WARNING", logger="cropcast.api.main"):
+        assert client.get("/health").json()["db_ok"] is False
+    rec = next(r for r in caplog.records if r.getMessage() == "health: db unavailable")
+    assert rec.error == "RuntimeError"  # type: ignore[attr-defined]
+    assert "s3cret" not in rec.detail and "ro:***@host" in rec.detail  # type: ignore[attr-defined]
