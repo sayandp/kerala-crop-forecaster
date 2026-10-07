@@ -4,7 +4,7 @@ services:
   - type: web
     name: cropcast-api
     runtime: docker
-    dockerfilePath: ./docker/api.Dockerfile
+    dockerfilePath: docker/api.Dockerfile
     dockerContext: .
     region: singapore
     plan: free
