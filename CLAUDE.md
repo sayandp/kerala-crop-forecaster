@@ -305,7 +305,11 @@ Rules:
 - [x] 4. Serve + observe: read-only role, FastAPI on Render (Docker), Next.js dashboard on Vercel (ISR +
       revalidate step), weekly Evidently drift + escalation, README overhaul (Streamlit replaced by Vercel).
       Live since 2026-10-08: API https://cropcast-api-21tx.onrender.com, dashboard
-      https://kerala-crop-forecaster.vercel.app, Telegram https://t.me/keralavipanivila
+      https://kerala-crop-forecaster.vercel.app, Telegram https://t.me/keralavipanivila.
+      Lighthouse mobile on live `/` (2026-10-08, 5 runs): performance 91–95 (median 94), accessibility,
+      best practices, SEO 100 — charts load only after first paint + idle; font `display: optional`.
+      Revalidate step verified live (status ok). Open: `RENDER_DEPLOY_HOOK` secret must be the full hook URL
+      (deploy.yml validates it); until then Render deploys are manual.
 - [ ] 5. Telegram bot (Stage 2) — drift + live accuracy already done in Phases 3–4
 - [ ] 6. CI/CD polish, README (diagram, live MAPE badge), user acquisition
 
