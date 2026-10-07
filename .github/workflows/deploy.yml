@@ -24,5 +24,16 @@ jobs:
             echo "::warning::RENDER_DEPLOY_HOOK secret not set - skipping deploy"
             exit 0
           fi
-          curl -fsS -X POST "$HOOK" > /dev/null
-          echo "Render deploy triggered for ${{ github.event.workflow_run.head_sha }}"
+          # Tolerate paste artefacts (quotes, spaces, newlines); never echo the value.
+          HOOK=$(printf '%s' "$HOOK" | tr -d '[:space:]"'"'")
+          case "$HOOK" in
+            https://api.render.com/deploy/srv-*\?key=*) ;;
+            *)
+              echo "::error::RENDER_DEPLOY_HOOK must be the full Deploy Hook URL from Render (Settings > Deploy Hook): https://api.render.com/deploy/srv-...?key=... (stored value: ${#HOOK} chars, starts with https:// = $(case "$HOOK" in https://*) echo yes;; *) echo no;; esac))"
+              exit 1
+              ;;
+          esac
+          code=$(curl -sS -o /dev/null -w '%{http_code}' -X POST "$HOOK")
+          echo "Render deploy hook: HTTP $code for ${{ github.event.workflow_run.head_sha }}"
+          echo "### Render deploy hook: HTTP $code (${{ github.event.workflow_run.head_sha }})" >> "$GITHUB_STEP_SUMMARY"
+          case "$code" in 2??) ;; *) exit 1 ;; esac
