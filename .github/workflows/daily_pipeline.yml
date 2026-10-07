@@ -20,6 +20,7 @@ concurrency:
 
 permissions:
   contents: write  # commits status/last_run.json (keeps the cron alive past 60 idle days)
+  issues: write    # drift escalation opens / comments on a 'drift' issue
 
 jobs:
   run:
@@ -62,7 +63,7 @@ jobs:
             # pre-registered live check of the move challenger after evaluating.
             if [ "$(date -u +%u)" = "7" ]; then
               RUN_STEPS="${RUN_STEPS/clean,/clean,retrain,}"
-              RUN_STEPS="${RUN_STEPS/evaluate,/evaluate,promotion_check,}"
+              RUN_STEPS="${RUN_STEPS/evaluate,/evaluate,promotion_check,drift,}"
             fi
             # Monthly (1st): retention - prices_raw > 90 d, forecasts / shadow > 180 d
             # -> GitHub Release (verified) -> deleted from Neon.

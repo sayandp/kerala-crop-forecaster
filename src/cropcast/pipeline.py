@@ -51,6 +51,7 @@ from cropcast.models.training import (
     train_final,
 )
 from cropcast.models.tune import TUNE_HORIZON, tune
+from cropcast.monitor.drift import run_weekly
 from cropcast.monitor.live import (
     matured_forecasts,
     matured_shadow,
@@ -514,6 +515,18 @@ def run_promotion_check(ctx: RunContext) -> StepResult:
     return StepResult("promotion_check", metrics={"challenger": version, "verdicts": verdicts})
 
 
+def run_drift(ctx: RunContext) -> StepResult:
+    """Weekly Evidently drift report -> GitHub Release + drift_reports; escalate if needed."""
+    out = run_weekly(
+        ctx.engine or db.get_engine(),
+        _serve_snapshot(ctx),
+        load_series(),
+        ctx.dry_run,
+        send_admin_message,
+    )
+    return StepResult("drift", metrics=out)
+
+
 def run_notify(ctx: RunContext) -> StepResult:
     """Telegram Stage 1: one daily channel post (idempotent) + subscriber count."""
     engine = ctx.engine or db.get_engine()
@@ -543,6 +556,7 @@ STEPS: dict[str, Callable[[RunContext], StepResult]] = {
     "shadow": run_shadow,
     "evaluate": run_evaluate,
     "promotion_check": run_promotion_check,
+    "drift": run_drift,
     "notify": run_notify,
     "archive": run_archive,
     "features": run_features,

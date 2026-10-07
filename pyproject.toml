@@ -68,7 +68,7 @@ strict = true
 mypy_path = "src"
 
 [[tool.mypy.overrides]]
-module = ["yaml", "yaml.*", "statsmodels", "statsmodels.*", "scipy", "scipy.*", "sklearn", "sklearn.*"]
+module = ["yaml", "yaml.*", "statsmodels", "statsmodels.*", "scipy", "scipy.*", "sklearn", "sklearn.*", "evidently", "evidently.*"]
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]
