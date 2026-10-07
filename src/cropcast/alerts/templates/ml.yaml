@@ -1,11 +1,11 @@
 # Malayalam channel text (first line of every item). Placeholders: {date} {market} {price} {lo} {hi} {obs_date}
-header: "🌾 കേരള മാർക്കറ്റ് വില · {date}"
+header: "🌾 കേരള വിപണി വില · {date}"
 crops:
   banana: "നേന്ത്രക്കായ"
   coconut: "തേങ്ങ"
   pepper: "കുരുമുളക്"
   rubber: "റബ്ബർ"
   tapioca: "കപ്പ"
-line: "{market}: ഇന്ന് ₹{price}/കിലോ · 7 ദിവസം കഴിഞ്ഞ് പ്രതീക്ഷിക്കുന്നത് ₹{lo}–{hi}"
-line_stale: "{market}: ₹{price}/കിലോ ({obs_date}) · 7 ദിവസം കഴിഞ്ഞ് പ്രതീക്ഷിക്കുന്നത് ₹{lo}–{hi}"  # latest price is not from today
+line: "{market}: ഇന്ന് ₹{price}/കിലോ · 7 ദിവസത്തിനു ശേഷം പ്രതീക്ഷിക്കാവുന്ന വില ₹{lo}–{hi}"
+line_stale: "{market}: ₹{price}/കിലോ ({obs_date}) · 7 ദിവസത്തിനു ശേഷം പ്രതീക്ഷിക്കാവുന്ന വില ₹{lo}–{hi}"  # latest price is not from today
 footer: "ഉറവിടം: Agmarknet മോഡൽ വില (₹/ക്വിന്റൽ ÷ 100). ഇത് ഒരു പ്രതീക്ഷിത പരിധി മാത്രമാണ്, ഉറപ്പല്ല."

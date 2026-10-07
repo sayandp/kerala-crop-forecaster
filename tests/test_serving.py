@@ -199,6 +199,7 @@ def test_predict_shadow_notify_idempotent(
     )
     monkeypatch.setattr(channel.settings, "telegram_channel_id", "@test")
     monkeypatch.setattr(channel, "new_data_today", lambda e, d: True)
+    monkeypatch.setattr(channel, "postable", lambda rows, d: rows)  # freshness: test_units
     monkeypatch.setattr(
         channel, "_api", lambda m, p: calls.append(p) or {"result": {"message_id": 7}}
     )

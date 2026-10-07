@@ -70,6 +70,7 @@ from cropcast.registry.promote import (
 from cropcast.registry.retrain import retrain_and_register
 from cropcast.tracking import configure_mlflow
 from cropcast.validate.schemas import check_reject_rate, validate
+from cropcast.validate.units import implausible
 
 log = logging.getLogger("cropcast.pipeline")
 
@@ -144,7 +145,20 @@ def run_validate(ctx: RunContext) -> StepResult:
     if prices is None:
         prices = _load_latest_snapshot(ctx.run_date)
     good, rejected = validate(prices)
+    flagged: pd.Series = (
+        implausible(good["commodity"], good["modal_price"]) if len(good) else pd.Series(dtype=bool)
+    )
+    n_flagged = int(flagged.sum())
+    if n_flagged:
+        log.warning(
+            "prices outside plausible Rs./kg band (config/units.yaml)",
+            extra={
+                "rows": n_flagged,
+                "by_crop": good["commodity"][flagged].value_counts().to_dict(),
+            },
+        )
     metrics: dict[str, Any] = {
+        "implausible_unit_rows": n_flagged,
         "rows": len(prices),
         "good": len(good),
         "rejected": len(rejected),

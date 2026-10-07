@@ -1,0 +1,11 @@
+# Plausible modal price bands per crop in Rs./kg (Agmarknet Rs./quintal / 100) — for review.
+# Derived from prices_clean 2024-10 .. 2026-10 (1st / 50th / 99th percentile in comments).
+# Rows outside a band are almost always unit errors (per-kg or per-nut prices entered in a
+# per-quintal field). They are flagged in `validate` (not rejected) and never shown in the
+# Telegram post.
+bands_rs_per_kg:
+  banana:  {min: 8,   max: 150}    # 12 / 41 / 80
+  coconut: {min: 20,  max: 150}    # 33 / 66 / 90; values < 1 are per-nut prices
+  pepper:  {min: 300, max: 1500}   # 530 / 655 / 900
+  rubber:  {min: 100, max: 450}    # 19.5 / 184 / 298; ~1 % at 16-20 look like x10 entry errors
+  tapioca: {min: 8,   max: 120}    # 12 / 30 / 55

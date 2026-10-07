@@ -31,6 +31,7 @@ import pandas as pd
 
 from cropcast.config import settings
 from cropcast.ingest.http import get_json, make_client
+from cropcast.ingest.mappings import COMMODITY_MAP
 
 log = logging.getLogger(__name__)
 
@@ -167,6 +168,15 @@ def parse_portal_daily(payload: dict[str, Any], day: date) -> pd.DataFrame:
             "skipped non-quintal price rows",
             extra={"units": {f"{c} [{u}]": n for (c, u), n in other_units.items()}},
         )
+        # A modelled crop (coconut is the usual suspect: per nut / per 1000 nuts) must never
+        # silently change unit: flag it loudly. The rows are still excluded.
+        targets = {
+            f"{c} [{u}]": n
+            for (c, u), n in other_units.items()
+            if str(c).casefold() in COMMODITY_MAP
+        }
+        if targets:
+            log.warning("target crop not reported per quintal", extra={"units": targets})
     return _finish(pd.DataFrame(rows), SOURCE_PORTAL)
 
 

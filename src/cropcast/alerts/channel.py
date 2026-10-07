@@ -24,6 +24,7 @@ import yaml
 from sqlalchemy import Engine, text
 
 from cropcast.config import PROJECT_ROOT, settings
+from cropcast.validate.units import implausible
 
 log = logging.getLogger(__name__)
 
@@ -31,6 +32,7 @@ TEMPLATES = Path(__file__).resolve().parent / "templates"
 CHANNEL_CONFIG = PROJECT_ROOT / "config" / "channel.yaml"
 LANGS = ("ml", "en")
 API = "https://api.telegram.org/bot{token}/{method}"
+MAX_PRICE_AGE_DAYS = 3  # a market whose latest price is older is left out of the post
 
 
 @lru_cache(maxsize=4)
@@ -62,6 +64,22 @@ def gather(engine: Engine, run_date: date) -> pd.DataFrame:
     """
     with engine.connect() as conn:
         return pd.read_sql(text(sql), conn, params={"d": run_date})
+
+
+def postable(rows: pd.DataFrame, run_date: date) -> pd.DataFrame:
+    """Markets fresh enough (latest price <= 3 days old) and in a plausible Rs./kg band."""
+    if rows.empty:
+        return rows
+    obs = pd.to_datetime(rows["obs_date"])
+    fresh = obs >= pd.Timestamp(run_date) - pd.Timedelta(days=MAX_PRICE_AGE_DAYS)
+    ok = fresh & ~implausible(rows["commodity"], rows["last_value"])
+    dropped = rows.loc[~ok, ["commodity", "market"]].astype(str)
+    if len(dropped):
+        log.info(
+            "markets left out of the post",
+            extra={"markets": [f"{c}/{m}" for c, m in dropped.itertuples(index=False)]},
+        )
+    return rows[ok]
 
 
 def render_post(rows: pd.DataFrame, run_date: date) -> str:
@@ -151,6 +169,9 @@ def notify(engine: Engine, run_date: date, dry_run: bool = False) -> NotifyResul
     rows = gather(engine, run_date)
     if rows.empty:
         return NotifyResult("skipped", "no forecasts for this date")
+    rows = postable(rows, run_date)
+    if rows.empty:
+        return NotifyResult("skipped", f"no market price fresher than {MAX_PRICE_AGE_DAYS} days")
     post = render_post(rows, run_date)
     if dry_run or not (settings.telegram_bot_token and settings.telegram_channel_id):
         reason = "dry-run" if dry_run else "TELEGRAM_BOT_TOKEN / TELEGRAM_CHANNEL_ID not set"
