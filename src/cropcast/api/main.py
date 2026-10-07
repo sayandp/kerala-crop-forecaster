@@ -6,10 +6,11 @@ Run: uv run uvicorn cropcast.api.main:app --reload
 from __future__ import annotations
 
 import logging
+from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, datetime
 from typing import Annotated
 
-from fastapi import FastAPI, HTTPException, Query, Request, Response
+from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
@@ -34,6 +35,8 @@ from cropcast.config import settings
 log = logging.getLogger(__name__)
 
 STALE_DAYS = 3
+# One background thread for the health DB probe so a hung connect can't block the response.
+_health_pool = ThreadPoolExecutor(max_workers=1, thread_name_prefix="health")
 
 limiter = Limiter(key_func=get_remote_address, default_limits=[settings.api_rate_limit])
 app = FastAPI(
@@ -57,13 +60,14 @@ Market_ = Annotated[str, Query(min_length=2, max_length=60)]
 
 
 @app.get("/health", response_model=Health)
-def health(response: Response) -> Health:
+def health() -> Health:
+    """Always 200 within ~3 s (Render's health check): the service is up even when Neon is
+    slow or down; that is reported as db_ok=false / status=degraded."""
     now = datetime.now(UTC)
     try:
-        h = q.health()
-    except Exception as exc:  # DB unreachable: report, don't crash
-        log.warning("health: db error", extra={"error": type(exc).__name__})
-        response.status_code = 503
+        h = _health_pool.submit(q.health).result(timeout=settings.api_db_timeout_s)
+    except Exception as exc:  # DB slow (TimeoutError) / unreachable: report, don't crash
+        log.warning("health: db unavailable", extra={"error": type(exc).__name__})
         return Health(
             status="degraded",
             db_ok=False,

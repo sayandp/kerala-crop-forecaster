@@ -2,13 +2,14 @@
 
 from __future__ import annotations
 
+import json
 from datetime import date
 from functools import lru_cache
 from pathlib import Path
-from typing import Literal
+from typing import Annotated, Literal
 
-from pydantic import Field, SecretStr
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic import Field, SecretStr, field_validator
+from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
@@ -109,13 +110,15 @@ class Settings(BaseSettings):
     # --- API (Phase 4) ---
     # Read-only role (SELECT on serving tables). The API and the dashboard use ONLY this URL.
     database_url_ro: str | None = None
-    cors_origins: list[str] = Field(
+    # Env: a single URL, a comma-separated list or a JSON list (Render sets a plain URL).
+    cors_origins: Annotated[list[str], NoDecode] = Field(
         default_factory=lambda: [
             "https://kerala-crop-forecaster.vercel.app",
             "http://localhost:3000",
         ]
     )
     api_cache_ttl_s: int = 600
+    api_db_timeout_s: float = 3.0  # /health answers within ~3 s even if Neon is slow
     api_rate_limit: str = "60/minute"
 
     # --- Dashboard (Vercel) on-demand revalidation ---
@@ -126,6 +129,16 @@ class Settings(BaseSettings):
     telegram_bot_token: SecretStr | None = None
     telegram_admin_chat_id: str | None = None
     telegram_channel_id: str | None = None  # public channel for the daily Stage-1 post
+
+    @field_validator("cors_origins", mode="before")
+    @classmethod
+    def _split_origins(cls, v: object) -> object:
+        if isinstance(v, str):
+            v = v.strip()
+            if v.startswith("["):
+                return json.loads(v)
+            return [o.strip() for o in v.split(",") if o.strip()]
+        return v
 
     @property
     def cache_dir(self) -> Path:

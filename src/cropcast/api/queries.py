@@ -47,10 +47,19 @@ def engine() -> Engine:
     if not settings.database_url_ro:
         raise RuntimeError("DATABASE_URL_RO is not set (the API only uses the read-only role)")
     url = settings.database_url_ro.replace("postgresql://", "postgresql+psycopg://", 1)
-    # connect_timeout: /health must answer (503) quickly when the DB is unreachable,
-    # not hang on TCP retries.
+    # Created lazily on the first request (no DB connection at import/startup). Timeouts keep
+    # /health fast when Neon is waking up or unreachable: connect and statement both <= ~3 s.
+    timeout = settings.api_db_timeout_s
     return create_engine(
-        url, pool_pre_ping=True, pool_size=2, max_overflow=2, connect_args={"connect_timeout": 5}
+        url,
+        pool_pre_ping=True,
+        pool_size=2,
+        max_overflow=2,
+        pool_timeout=timeout,
+        connect_args={
+            "connect_timeout": max(1, int(timeout)),
+            "options": f"-c statement_timeout={int(timeout * 1000)}",
+        },
     )
 
 

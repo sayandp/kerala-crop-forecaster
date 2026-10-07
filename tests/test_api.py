@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import time
 from collections.abc import Iterator
 from datetime import date, timedelta
 
@@ -12,7 +13,7 @@ from sqlalchemy import Engine, text
 
 from cropcast.api import main as api
 from cropcast.api import queries as q
-from cropcast.config import settings
+from cropcast.config import Settings, settings
 
 pytestmark = pytest.mark.db
 D = date(2026, 10, 7)
@@ -121,7 +122,38 @@ def test_health_reports_db_down(client: TestClient, monkeypatch: pytest.MonkeyPa
     monkeypatch.setattr(settings, "database_url_ro", "postgresql+psycopg://x@127.0.0.1:1/none")
     q.engine.cache_clear()
     r = client.get("/health")
-    assert r.status_code == 503 and r.json()["db_ok"] is False
+    # Render's health check needs 200: the service is up, the DB is reported as down.
+    assert r.status_code == 200 and r.json()["db_ok"] is False
+    assert r.json()["status"] == "degraded"
+
+
+def test_health_answers_fast_when_db_hangs(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(settings, "api_db_timeout_s", 0.5)
+    monkeypatch.setattr(q, "health", lambda: time.sleep(3))
+    t0 = time.monotonic()
+    r = client.get("/health")
+    assert time.monotonic() - t0 < 2
+    assert r.status_code == 200 and r.json()["db_ok"] is False
+
+
+@pytest.mark.parametrize(
+    ("raw", "expected"),
+    [
+        ("https://a.vercel.app", ["https://a.vercel.app"]),
+        (
+            "https://a.vercel.app, http://localhost:3000",
+            ["https://a.vercel.app", "http://localhost:3000"],
+        ),
+        ('["https://a.vercel.app"]', ["https://a.vercel.app"]),
+    ],
+)
+def test_cors_origins_from_env(
+    raw: str, expected: list[str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("CORS_ORIGINS", raw)
+    assert Settings().cors_origins == expected
 
 
 def test_crops_and_markets(client: TestClient) -> None:

@@ -84,22 +84,38 @@ jobs:
           echo "image size: ${mb} MB"
           echo "### API image: ${mb} MB" >> "$GITHUB_STEP_SUMMARY"
           test "$mb" -lt 400
-      - name: Cold start < 20 s under 512 MB
+      - name: Load schema (so /health does a real DB round trip)
+        run: PGPASSWORD=cropcast psql -v ON_ERROR_STOP=1 -h localhost -U cropcast -d cropcast -q -f sql/schema.sql
+
+      # Same as Render: PORT=10000, published port, plain-URL CORS_ORIGINS, 512 MB.
+      - name: Cold start < 20 s under 512 MB (PORT=10000)
         run: |
           start=$(date +%s.%N)
-          docker run -d --name api --memory=512m --network host -e PORT=8000 \
-            -e DATABASE_URL_RO=postgresql://cropcast:cropcast@localhost:5432/cropcast cropcast-api:ci
+          docker run -d --name api --memory=512m -e PORT=10000 -p 10000:10000             --add-host=host.docker.internal:host-gateway             -e CORS_ORIGINS=https://kerala-crop-forecaster.vercel.app             -e DATABASE_URL_RO=postgresql://cropcast:cropcast@host.docker.internal:5432/cropcast             cropcast-api:ci
           for i in $(seq 1 200); do
-            code=$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8000/health || true)
+            code=$(curl -s -o /tmp/health.json -w '%{http_code}' http://127.0.0.1:10000/health || true)
             if [ "$code" != "000" ]; then break; fi
             sleep 0.1
           done
           secs=$(echo "$(date +%s.%N) - $start" | bc)
-          echo "first /health response after ${secs}s (HTTP $code)"
-          echo "### API cold start: ${secs}s (HTTP $code), memory limit 512 MB" >> "$GITHUB_STEP_SUMMARY"
+          echo "first /health response after ${secs}s (HTTP $code): $(cat /tmp/health.json)"
+          echo "### API cold start: ${secs}s (HTTP $code), PORT=10000, memory limit 512 MB" >> "$GITHUB_STEP_SUMMARY"
           docker stats --no-stream api
-          test "$code" != "000"
+          docker logs api | tail -20
+          test "$code" = "200"
+          grep -q '"db_ok":true' /tmp/health.json
           awk "BEGIN { exit !($secs < 20) }"
+
+      # Neon unreachable / blackholed: /health must still answer 200 within 5 s (db_ok=false).
+      - name: /health within 5 s when the DB hangs
+        run: |
+          docker run -d --name api_nodb --memory=512m -e PORT=10000 -p 10001:10000             -e DATABASE_URL_RO=postgresql://u:p@10.255.255.1:5432/none cropcast-api:ci
+          for i in $(seq 1 100); do curl -s -o /dev/null http://127.0.0.1:10001/docs && break; sleep 0.1; done
+          out=$(curl -s -m 5 -w ' HTTP %{http_code} in %{time_total}s' http://127.0.0.1:10001/health)
+          echo "$out"
+          echo "### /health with unreachable DB: $out" >> "$GITHUB_STEP_SUMMARY"
+          echo "$out" | grep -q 'HTTP 200' && echo "$out" | grep -q '"db_ok":false'
+          docker stats --no-stream api_nodb
 
   web:
     runs-on: ubuntu-24.04

@@ -14,6 +14,6 @@ services:
       - key: DATABASE_URL_RO          # read-only role cropcast_ro (set in the dashboard)
         sync: false
       - key: CORS_ORIGINS
-        value: '["https://kerala-crop-forecaster.vercel.app"]'
+        value: https://kerala-crop-forecaster.vercel.app
       - key: ENV
         value: prod
