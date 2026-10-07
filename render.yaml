@@ -1,0 +1,19 @@
+# Render blueprint: cropcast API (free web service). Deploys are triggered by
+# .github/workflows/deploy.yml (deploy hook) after CI passes on main — autoDeploy is off.
+services:
+  - type: web
+    name: cropcast-api
+    runtime: docker
+    dockerfilePath: ./docker/api.Dockerfile
+    dockerContext: .
+    region: singapore
+    plan: free
+    autoDeploy: false
+    healthCheckPath: /health
+    envVars:
+      - key: DATABASE_URL_RO          # read-only role cropcast_ro (set in the dashboard)
+        sync: false
+      - key: CORS_ORIGINS
+        value: '["https://kerala-crop-forecaster.vercel.app"]'
+      - key: ENV
+        value: prod

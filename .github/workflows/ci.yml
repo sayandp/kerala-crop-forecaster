@@ -54,3 +54,49 @@ jobs:
 
       - name: Pytest
         run: uv run pytest -q
+
+  docker:
+    # API image: size < 400 MB, starts and answers /health within 20 s under 512 MB RAM.
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: cropcast
+          POSTGRES_PASSWORD: cropcast
+          POSTGRES_DB: cropcast
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U cropcast -d cropcast"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v7
+      - name: Build
+        run: docker build -f docker/api.Dockerfile -t cropcast-api:ci .
+      - name: Image size < 400 MB
+        run: |
+          size=$(docker image inspect cropcast-api:ci --format '{{.Size}}')
+          mb=$((size / 1024 / 1024))
+          echo "image size: ${mb} MB"
+          echo "### API image: ${mb} MB" >> "$GITHUB_STEP_SUMMARY"
+          test "$mb" -lt 400
+      - name: Cold start < 20 s under 512 MB
+        run: |
+          start=$(date +%s.%N)
+          docker run -d --name api --memory=512m --network host -e PORT=8000 \
+            -e DATABASE_URL_RO=postgresql://cropcast:cropcast@localhost:5432/cropcast cropcast-api:ci
+          for i in $(seq 1 200); do
+            code=$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8000/health || true)
+            if [ "$code" != "000" ]; then break; fi
+            sleep 0.1
+          done
+          secs=$(echo "$(date +%s.%N) - $start" | bc)
+          echo "first /health response after ${secs}s (HTTP $code)"
+          echo "### API cold start: ${secs}s (HTTP $code), memory limit 512 MB" >> "$GITHUB_STEP_SUMMARY"
+          docker stats --no-stream api
+          test "$code" != "000"
+          awk "BEGIN { exit !($secs < 20) }"

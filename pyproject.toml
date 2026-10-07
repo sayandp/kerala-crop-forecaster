@@ -29,6 +29,16 @@ dependencies = [
 ]
 
 [dependency-groups]
+# Minimal runtime of the API container (docker/api.Dockerfile): no pandas, MLflow, LightGBM.
+api = [
+    "fastapi>=0.142.2",
+    "uvicorn>=0.54.0",
+    "slowapi>=0.1.9",
+    "sqlalchemy>=2.0",
+    "psycopg[binary]>=3.1",
+    "pydantic-settings>=2.2",
+    "python-dotenv>=1.0",
+]
 dev = [
     "pytest>=8.0",
     "ruff>=0.5",

@@ -106,6 +106,18 @@ class Settings(BaseSettings):
     mlflow_tracking_username: str | None = None
     mlflow_tracking_password: SecretStr | None = None
 
+    # --- API (Phase 4) ---
+    # Read-only role (SELECT on serving tables). The API and the dashboard use ONLY this URL.
+    database_url_ro: str | None = None
+    cors_origins: list[str] = Field(
+        default_factory=lambda: [
+            "https://kerala-crop-forecaster.vercel.app",
+            "http://localhost:3000",
+        ]
+    )
+    api_cache_ttl_s: int = 600
+    api_rate_limit: str = "60/minute"
+
     # --- Telegram ---
     telegram_bot_token: SecretStr | None = None
     telegram_admin_chat_id: str | None = None
