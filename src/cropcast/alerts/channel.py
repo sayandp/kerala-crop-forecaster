@@ -134,7 +134,10 @@ def already_posted(engine: Engine, run_date: date) -> bool:
 def new_data_today(engine: Engine, run_date: date) -> bool:
     with engine.connect() as conn:
         n = conn.execute(
-            text("SELECT count(*) FROM prices_raw WHERE ingested_at::date >= :d"),
+            text(
+                "SELECT count(*) FROM prices_raw "
+                "WHERE (ingested_at AT TIME ZONE 'Asia/Kolkata')::date >= :d"
+            ),  # run dates are IST
             {"d": run_date},
         ).scalar_one()
     return int(n) > 0
@@ -151,7 +154,7 @@ def notify(engine: Engine, run_date: date, dry_run: bool = False) -> NotifyResul
     post = render_post(rows, run_date)
     if dry_run or not (settings.telegram_bot_token and settings.telegram_channel_id):
         reason = "dry-run" if dry_run else "TELEGRAM_BOT_TOKEN / TELEGRAM_CHANNEL_ID not set"
-        log.info("channel post (not sent)", extra={"reason": reason, "post": post})
+        log.info("channel post (not sent)", extra={"reason": reason, "chars": len(post)})
         return NotifyResult("dry_run", reason, text=post)
     body = _api(
         "sendMessage",

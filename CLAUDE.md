@@ -141,18 +141,35 @@ Never hardcode secrets. Never commit `.env`. Read env only via `cropcast.config.
 - **Phase 2.5 outcome** (`reports/phase2_5_signal_hunt.md`): nothing beats naive on price level — arrivals (E1), upstream TN/KA markets (E2), no-market pooling (E3), weekly means (E4b), naive/LGBM combination (E5) all tie or lose. The only signal: **direction of > 3 % moves at h = 7** (E4a classifier: macro-F1 0.52 vs 0.24 flat / 0.41 trend; significant under class-balanced DM for coconut, pepper, rubber, tapioca; strict 0/1-loss rule not met vs always-flat).
 - **Phase 3 plan from that:** champion = **naive** for every crop (p50), LightGBM p10–p90 band for uncertainty; challenger = **E4a move classifier in shadow** for coconut/pepper/rubber/tapioca (alerts become user-facing only after it meets the rule live); banana = naive only; the LGBM regressor stays a registered challenger under the existing gate.
 
-## Registry & promotion
+## Registry & promotion (Phase 3: "serve honestly")
 
-- Registered model name: `cropcast-lgbm-h{horizon}`.
-- Use MLflow **aliases** (`champion`, `challenger`), not deprecated stages.
-- Promote challenger → champion only if: beats naive MAPE **and** ≤ champion MAPE × 1.02. Otherwise tag as `challenger`.
-- Batch prediction **always** loads `models:/cropcast-lgbm-h{h}@champion`. Never predict with an unpromoted model.
-- First run (no champion): promote if it beats naive.
+- Registered models (MLflow pyfuncs on DagsHub, **aliases** only — never stages):
+  - `cropcast-price-h{1,7,14}`: **champion = naive** (p50 = last observed price) with the LightGBM
+    quantile p10/p90 band applied around it in log1p space; **challenger = LightGBM p50**.
+  - `cropcast-move-h7`: the E4a up/down/flat classifier, alias `challenger`, **shadow only**; per-crop
+    alias `champion_<crop>` only via the live check below.
+- **Price gate** (`registry/promote.py`): challenger → champion only if it beats the champion by
+  **≥ 3 % relative MAPE AND DM p < 0.05** (APE loss, HAC lag h−1) on the 52-fold diagnostic.
+  Every decision (refresh / promote / refuse / pass / fail / insufficient data) → MLflow
+  (experiment `cropcast-registry`) **and** the `promotion_log` table.
+- **Move challenger:** never promoted from a backtest — only by the weekly `promotion_check`
+  strictly per `reports/preregistration_e4a.md` (committed alone, before any shadow prediction;
+  do not edit it). Pass → alias `champion_<crop>` + admin ping. Up/down alerts additionally need
+  `move_alerts_enabled: true` in `config/channel.yaml` (a human flips it).
+- Batch prediction **always** loads `models:/cropcast-price-h{h}@champion` / `cropcast-move-h7@challenger`.
+- **Weekly retrain** (scheduled Sunday run, step `retrain`, ~10 min): refit band + challengers,
+  register new versions, move `champion` to the refreshed naive version unless the gate promotes.
+  Model logging uses the client API for metrics (MLflow 3 fluent metrics after `log_model` carry a
+  LoggedModel id that DagsHub rejects).
 
 ## Monitoring
 
 - Evidently data-drift: reference = last 90 days of training data, current = last 14 days. Save HTML to `reports/` and summary metrics to DB.
-- Live accuracy: each run joins past `forecasts` with new actuals → `model_metrics (split='live')`.
+- Live accuracy (`evaluate` step, daily): matured `forecasts` ⋈ `prices_clean` → rolling 28-day MAPE vs
+  naive and p10–p90 coverage per crop × horizon; matured `shadow_predictions` → the pre-registered
+  statistics (class-balanced DM vs always-flat and trend persistence, HAC lag 6, Holm across 4 crops,
+  precision bar, minimum evidence) → `model_metrics (split='live')`. Only shadow rows with the current
+  **spec hash** count.
 - Escalation: drift on >30% of features **or** live MAPE > 1.5× backtest for 7 consecutive days → force retrain with longer window + Telegram ping to admin.
 - Any pipeline failure → `pipeline_runs.status='failed'` + Telegram ping to `TELEGRAM_ADMIN_CHAT_ID`.
 
@@ -198,7 +215,7 @@ Never hardcode secrets. Never commit `.env`. Read env only via `cropcast.config.
 ## CI/CD
 
 - `ci.yml` (PR): ruff, mypy, pytest, docker build.
-- `daily_pipeline.yml`: cron `17 14 * * *` (UTC = 19:47 IST; off the hour because GitHub delays on-the-hour crons) + `workflow_dispatch`; uploads `reports/` artifact.
+- `daily_pipeline.yml`: cron `17 14 * * *` (UTC = 19:47 IST; off the hour because GitHub delays on-the-hour crons) + `workflow_dispatch`; uploads `reports/` artifact. Steps: `ingest,validate,weather,clean,predict,shadow,evaluate,notify`; scheduled Sundays add `retrain` (after clean) and `promotion_check` (after evaluate); the 1st adds `archive`. Full git history (`fetch-depth: 0`) — the shadow step verifies the pre-registration commit.
 - `deploy.yml` (push to main): build → push GHCR → Render deploy hook.
 
 ## Don'ts
@@ -225,14 +242,23 @@ The project must cost **₹0** to run. Every design choice has to fit these free
 Rules:
 - **DB budget:** < 400 MB total. Log `db_size_mb` on every pipeline run (`pipeline_runs.details`) and fail loudly / ping admin before the limit, not after.
 - **Features go to parquet** (artifacts / `data/`), never into Postgres tables.
-- **Prune `forecasts` older than 180 days** (live-accuracy history lives in `model_metrics`, which is small).
+- **Retention:** `forecasts` and `shadow_predictions` older than **180 days**, `prices_raw` older than
+  **90 days** → monthly `archive` step → verified GitHub Release → deleted from Neon (live-accuracy
+  history stays in `model_metrics`, which is small).
 - Don't store raw API payloads in Postgres; they live in `data/cache/` and the run artifact.
 - **Telegram webhook:** dedupe on `update_id` (Telegram retries when a cold-starting Render instance is slow) so a retried update is never processed twice.
 
 ## Telegram rollout (staged)
 
-- **Stage 1 — end of Phase 3:** one public Telegram **channel per crop**; the daily job posts the
-  forecast summary after batch predict (plain Bot API `sendMessage`, no webhook, no subscribers table).
+- **Stage 1 — Phase 3 (built):** **one** public channel (all crops in one post; per-crop channels later).
+  The `notify` step posts once per day after a successful run: per crop 1–3 markets
+  (`config/channel.yaml`) with the latest modal price (₹/kg = Agmarknet ₹/quintal ÷ 100; dated if not
+  today's) and the champion's p10–p90 for the price 7 days ahead; Malayalam line first, English second
+  (`alerts/templates/{ml,en}.yaml`); footer: source, "range, not a guarantee", repo link. **No move
+  alerts** until the classifier is promoted and the flag is on. Idempotent (`channel_posts`), skipped
+  when nothing new was ingested today (IST), member count → `channel_stats`. Needs secrets
+  `TELEGRAM_BOT_TOKEN` + `TELEGRAM_CHANNEL_ID`; without them (and in CI / `--dry-run`) the post is logged,
+  not sent.
 - **Stage 2 — Phase 5:** the interactive bot (`/subscribe`, `/price`, `/lang`, threshold alerts) via
   the Render webhook described under "Telegram bot".
 
@@ -246,7 +272,8 @@ Rules:
       `notebooks/02_backtest_report.ipynb`; LGBM ties naive — quality gate is a strict xfail)
 - [x] 2.5 Signal hunt (time-boxed): arrivals stored, prices_raw archive to GitHub Releases, E0–E5 vs the
       decision rule — no price model beats naive; E4a direction classifier is the Phase 3 shadow challenger
-- [ ] 3. Registry + promotion gate + batch predict → Postgres
+- [x] 3. Registry + promotion gate + batch predict → Postgres ("serve honestly": naive champion + LGBM band,
+      shadow move classifier under `reports/preregistration_e4a.md`, Telegram Stage 1 channel post, retention)
 - [ ] 4. FastAPI + Docker + deploy; Streamlit dashboard
 - [ ] 5. Evidently drift + live accuracy + Telegram bot
 - [ ] 6. CI/CD polish, README (diagram, live MAPE badge), user acquisition
