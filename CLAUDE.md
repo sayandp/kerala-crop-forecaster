@@ -8,7 +8,7 @@ Self-retraining MLOps system that forecasts daily mandi (modal) prices for Keral
 
 ## Architecture (one-line summary)
 
-GitHub Actions cron (daily 19:47 IST) → ingest → validate → features → train challenger → backtest vs baselines → promotion gate (MLflow registry) → batch predict with `@champion` → Postgres → served by FastAPI / Streamlit / Telegram bot. Evidently monitors drift; live MAPE is computed as actuals arrive.
+GitHub Actions cron (daily 19:47 IST) → ingest → validate → features → train challenger → backtest vs baselines → promotion gate (MLflow registry) → batch predict with `@champion` → Postgres → served read-only by FastAPI (Render) / Next.js dashboard (Vercel, ISR) / Telegram. Evidently monitors drift (weekly); live MAPE is computed as actuals arrive.
 
 **Serving is batch, not real-time.** Forecasts are precomputed nightly and read from Postgres. Do not add online inference.
 
@@ -18,7 +18,8 @@ GitHub Actions cron (daily 19:47 IST) → ingest → validate → features → t
 - pandas, numpy, LightGBM, scikit-learn, Pandera
 - MLflow (tracking + model registry, hosted on DagsHub)
 - Postgres (Neon/Supabase in prod, docker-compose locally), SQLAlchemy 2.x + psycopg
-- FastAPI + Uvicorn, Streamlit, python-telegram-bot (webhook mode inside FastAPI)
+- FastAPI + Uvicorn + slowapi (read-only API on Render); python-telegram-bot later (webhook inside FastAPI)
+- Dashboard: Next.js (App Router, TypeScript strict, Tailwind, Recharts) in `web/`, pnpm, on Vercel
 - Evidently (drift reports)
 - GitHub Actions (CI, daily pipeline, deploy); Prefect-compatible task/flow structure
 - Docker, ruff, mypy, pytest
@@ -44,7 +45,7 @@ src/cropcast/
   api/main.py          # FastAPI app
   pipeline.py          # orchestrates steps; `--steps` CLI flag
 config/series.yaml     # the modelled crop x market x variety series (editable)
-dashboard/app.py       # Streamlit
+web/                   # Next.js dashboard (Vercel): app/[lang]/…, lib/queries.ts, i18n/{ml,en}.json
 sql/schema.sql         # canonical DB schema
 docker/                # api.Dockerfile, docker-compose.yml
 tests/                 # unit, data-contract, model-quality tests
@@ -63,7 +64,8 @@ uv run python -m cropcast.pipeline --steps features,train,backtest      # Phase 
 uv run python -m cropcast.pipeline --steps features,train,backtest --tune   # + Optuna (h=7, folds 1-3, <=30 trials)
 uv run python -m cropcast.pipeline --steps train --dry-run   # no DB / MLflow / registry writes
 uv run uvicorn cropcast.api.main:app --reload   # API on :8000
-uv run streamlit run dashboard/app.py           # dashboard on :8501
+cd web && npx -y pnpm@12.9.1 install && npx -y pnpm@12.9.1 dev   # dashboard on :3000 (DATABASE_URL_RO in web/.env.local)
+cd web && npx -y pnpm@12.9.1 lint && npx -y pnpm@12.9.1 typecheck && npx -y pnpm@12.9.1 build
 uv run pytest -q                                # tests
 uv run ruff check . && uv run ruff format . && uv run mypy src
 ```
@@ -77,6 +79,9 @@ Run `ruff`, `mypy` and `pytest` before declaring any task done.
 Also: `TEST_DATABASE_URL` (throwaway DB for tests; an autouse fixture points every test at it so tests
 can never reach Neon), `LOCAL_DB_URL` (dev Postgres in `D:\pg`, see `scripts/pg_local.ps1`).
 **`DATABASE_URL` in `.env` is Neon (the source of truth)** — for local dev runs override it explicitly.
+Phase 4: `DATABASE_URL_RO` (read-only role `cropcast_ro`, SELECT on the 8 serving tables; created by
+`scripts/setup_ro_role.py`) — the API and the dashboard use **only** this URL. `VERCEL_REVALIDATE_URL` +
+`REVALIDATE_SECRET` (the `revalidate` step), `CORS_ORIGINS`.
 
 Never hardcode secrets. Never commit `.env`. Read env only via `cropcast.config.settings`.
 
@@ -164,24 +169,31 @@ Never hardcode secrets. Never commit `.env`. Read env only via `cropcast.config.
 
 ## Monitoring
 
-- Evidently data-drift: reference = last 90 days of training data, current = last 14 days. Save HTML to `reports/` and summary metrics to DB.
+- Evidently data-drift (`drift` step, scheduled Sundays): reference = the 90 days before, current = last 14 days of
+  model inputs (calendar features excluded — they drift by construction); target drift = KS on weekly price
+  changes. HTML → GitHub Release `reports-<date>`; summary → `drift_reports` (migration 007).
 - Live accuracy (`evaluate` step, daily): matured `forecasts` ⋈ `prices_clean` → rolling 28-day MAPE vs
   naive and p10–p90 coverage per crop × horizon; matured `shadow_predictions` → the pre-registered
   statistics (class-balanced DM vs always-flat and trend persistence, HAC lag 6, Holm across 4 crops,
   precision bar, minimum evidence) → `model_metrics (split='live')`. Only shadow rows with the current
   **spec hash** count.
-- Escalation: drift on >30% of features **or** live MAPE > 1.5× backtest for 7 consecutive days → force retrain with longer window + Telegram ping to admin.
+- Escalation: drift on >30% of features **or** live MAPE > 1.5× backtest for 7 consecutive days → Telegram ping to admin
+  + GitHub issue (label `drift`; one open issue, later escalations comment on it). Known: the first report had
+  74 % of inputs drifted (lags/rolling stats of a seasonal series) — the 30 % rule fires weekly; revisit the rule,
+  don't suppress it.
 - Any pipeline failure → `pipeline_runs.status='failed'` + Telegram ping to `TELEGRAM_ADMIN_CHAT_ID`.
 
 ## API contract (FastAPI)
 
-- `GET /forecast?commodity=&market=&horizon=` → `{p10, p50, p90, target_date, model_version}`
-- `GET /history?commodity=&market=&days=90`
-- `GET /markets`, `GET /commodities`
-- `GET /metrics` → live MAPE vs naive (powers README badge)
-- `GET /health` → DB ok + last successful run date
-- `POST /telegram/webhook`
-- Pydantic response models for everything. Read-only DB user for the API.
+Built (Phase 4, `api/main.py`; reads tables only — never loads MLflow models):
+- `GET /health` (503 when the DB is down), `/crops`, `/markets`, `/forecast?crop=&market=&horizon=1|7|14`
+  (with a `stale` flag: last price > 3 days old), `/history?crop=&market=&days=90`, `/metrics` (live MAPE
+  next to naive + shadow progress), `/badge/{coverage,subscribers}.json` (shields.io endpoint badges).
+- Pydantic response models; 10-min TTL cache; 60 req/min/IP (slowapi); CORS GET-only for the Vercel origin.
+- `docker/api.Dockerfile` (python:3.11-slim, uv, `--only-group api`, non-root, HEALTHCHECK; 186 MB; /health
+  0.8 s after start at 512 MB — CI enforces < 400 MB and < 20 s). `render.yaml`: free, Singapore,
+  autoDeploy off; `deploy.yml` calls `RENDER_DEPLOY_HOOK` after CI passes on main.
+- Later (Phase 5): `POST /telegram/webhook`.
 
 ## Telegram bot
 
@@ -214,9 +226,9 @@ Never hardcode secrets. Never commit `.env`. Read env only via `cropcast.config.
 
 ## CI/CD
 
-- `ci.yml` (PR): ruff, mypy, pytest, docker build.
-- `daily_pipeline.yml`: cron `17 14 * * *` (UTC = 19:47 IST; off the hour because GitHub delays on-the-hour crons) + `workflow_dispatch`; uploads `reports/` artifact. Steps: `ingest,validate,weather,clean,predict,shadow,evaluate,notify`; scheduled Sundays add `retrain` (after clean) and `promotion_check` (after evaluate); the 1st adds `archive`. Full git history (`fetch-depth: 0`) — the shadow step verifies the pre-registration commit.
-- `deploy.yml` (push to main): build → push GHCR → Render deploy hook.
+- `ci.yml` (PR + main): ruff, mypy, pytest; docker build + size/cold-start check; `web` job (node LTS, pnpm: lint, typecheck, build — no DB, pages build empty and fill via ISR).
+- `daily_pipeline.yml`: cron `17 14 * * *` (UTC = 19:47 IST; off the hour because GitHub delays on-the-hour crons) + `workflow_dispatch`; uploads `reports/` artifact. Steps: `ingest,validate,weather,clean,predict,shadow,evaluate,notify,revalidate`; scheduled Sundays add `retrain` (after clean) and `promotion_check,drift` (after evaluate); the 1st adds `archive`. Full git history (`fetch-depth: 0`) — the shadow step verifies the pre-registration commit.
+- `deploy.yml`: after `ci` succeeds on main → POST `RENDER_DEPLOY_HOOK` (Render builds the image). The dashboard deploys via the Vercel GitHub integration (root `web/`).
 
 ## Don'ts
 
@@ -237,7 +249,7 @@ The project must cost **₹0** to run. Every design choice has to fit these free
 | Neon Postgres | source of truth | **0.5 GB** storage → keep the DB **< 400 MB** (196 MB after Phase 1; 304 MB after Phase 2; **137 MB** after the Phase 2.5 archive — `prices_clean` 111 MB of it; `prices_raw` 90 days only). |
 | DagsHub | MLflow tracking + registry | Public repo; keep artifacts small (models, not datasets). |
 | Render | FastAPI + Telegram webhook | Free web service sleeps after idle; cold starts are fine for batch-serving. **No Render Postgres** (expires) — Neon only. |
-| Streamlit Community Cloud | dashboard | Public app, reads Neon via the read-only user. |
+| Vercel (Hobby) | Next.js dashboard | **Non-commercial only**; 100 GB bandwidth/month, 100k function invocations/month, **10 s** function limit → pages are ISR (`revalidate = 3600`) + on-demand revalidation after the daily run, so almost every view is a static hit; every query must finish well under 10 s (all < 1 s, indexed). Reads Neon via `DATABASE_URL_RO`, server-side only. |
 
 Rules:
 - **DB budget:** < 400 MB total. Log `db_size_mb` on every pipeline run (`pipeline_runs.details`) and fail loudly / ping admin before the limit, not after.
@@ -245,6 +257,9 @@ Rules:
 - **Retention:** `forecasts` and `shadow_predictions` older than **180 days**, `prices_raw` older than
   **90 days** → monthly `archive` step → verified GitHub Release → deleted from Neon (live-accuracy
   history stays in `model_metrics`, which is small).
+- **Read-only serving:** API and dashboard connect as `cropcast_ro` (SELECT only); never give them `DATABASE_URL`.
+- **Dashboard revalidation:** the `revalidate` step POSTs `VERCEL_REVALIDATE_URL` with header `x-revalidate-secret`;
+  a failure is a warning (the hourly ISR window self-heals), never a failed run.
 - Don't store raw API payloads in Postgres; they live in `data/cache/` and the run artifact.
 - **Telegram webhook:** dedupe on `update_id` (Telegram retries when a cold-starting Render instance is slow) so a retried update is never processed twice.
 
@@ -274,8 +289,9 @@ Rules:
       decision rule — no price model beats naive; E4a direction classifier is the Phase 3 shadow challenger
 - [x] 3. Registry + promotion gate + batch predict → Postgres ("serve honestly": naive champion + LGBM band,
       shadow move classifier under `reports/preregistration_e4a.md`, Telegram Stage 1 channel post, retention)
-- [ ] 4. FastAPI + Docker + deploy; Streamlit dashboard
-- [ ] 5. Evidently drift + live accuracy + Telegram bot
+- [x] 4. Serve + observe: read-only role, FastAPI on Render (Docker), Next.js dashboard on Vercel (ISR +
+      revalidate step), weekly Evidently drift + escalation, README overhaul (Streamlit replaced by Vercel)
+- [ ] 5. Telegram bot (Stage 2) — drift + live accuracy already done in Phases 3–4
 - [ ] 6. CI/CD polish, README (diagram, live MAPE badge), user acquisition
 
 Update this checklist as phases complete.
