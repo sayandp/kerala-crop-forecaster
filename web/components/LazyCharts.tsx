@@ -1,12 +1,35 @@
 "use client";
 
-// Recharts is the heaviest client bundle. It is fetched and evaluated only when a chart scrolls
-// near the viewport (charts sit below the fold on mobile), so it never competes with first paint.
+// Recharts is the heaviest client bundle. It is fetched and rendered only after the page has
+// painted and the browser is idle, and only once a chart is near the viewport: loading it during
+// hydration held back the first paint by ~1-2 s on mobile (Lighthouse LCP).
 import dynamic from "next/dynamic";
 import { useEffect, useRef, useState, type ComponentProps, type ComponentType } from "react";
 
 function Placeholder({ h }: { h: string }) {
   return <div className={`${h} w-full animate-pulse rounded-xl bg-line/40`} />;
+}
+
+/** Run `fn` once the page has loaded, a frame has been painted and the main thread is idle. */
+function afterFirstPaintIdle(fn: () => void): () => void {
+  let cancelled = false;
+  let idle: number | undefined;
+  const run = () => {
+    requestAnimationFrame(() =>
+      setTimeout(() => {
+        if (cancelled) return;
+        if ("requestIdleCallback" in window) idle = window.requestIdleCallback(fn, { timeout: 2000 });
+        else fn();
+      }, 0),
+    );
+  };
+  if (document.readyState === "complete") run();
+  else window.addEventListener("load", run, { once: true });
+  return () => {
+    cancelled = true;
+    window.removeEventListener("load", run);
+    if (idle !== undefined) window.cancelIdleCallback(idle);
+  };
 }
 
 function whenVisible<P extends object>(Inner: ComponentType<P>, h: string) {
@@ -19,17 +42,24 @@ function whenVisible<P extends object>(Inner: ComponentType<P>, h: string) {
         setShow(true);
         return;
       }
-      const io = new IntersectionObserver(
-        (entries) => {
-          if (entries.some((e) => e.isIntersecting)) {
-            setShow(true);
-            io.disconnect();
-          }
-        },
-        { rootMargin: "200px" },
-      );
-      io.observe(el);
-      return () => io.disconnect();
+      let io: IntersectionObserver | undefined;
+      const observe = () => {
+        io = new IntersectionObserver(
+          (entries) => {
+            if (entries.some((e) => e.isIntersecting)) {
+              setShow(true);
+              io?.disconnect();
+            }
+          },
+          { rootMargin: "200px" },
+        );
+        io.observe(el);
+      };
+      const cancel = afterFirstPaintIdle(observe);
+      return () => {
+        cancel();
+        io?.disconnect();
+      };
     }, []);
     return <div ref={ref}>{show ? <Inner {...props} /> : <Placeholder h={h} />}</div>;
   };
