@@ -12,7 +12,7 @@ on:
       steps:
         description: "Comma-separated steps"
         required: false
-        default: "ingest,validate,weather,clean,predict,shadow,evaluate,notify"
+        default: "ingest,validate,weather,clean,predict,shadow,evaluate,notify,revalidate"
 
 concurrency:
   group: daily-pipeline
@@ -33,6 +33,8 @@ jobs:
       TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
       TELEGRAM_ADMIN_CHAT_ID: ${{ secrets.TELEGRAM_ADMIN_CHAT_ID }}
       TELEGRAM_CHANNEL_ID: ${{ secrets.TELEGRAM_CHANNEL_ID }}
+      VERCEL_REVALIDATE_URL: ${{ secrets.VERCEL_REVALIDATE_URL }}
+      REVALIDATE_SECRET: ${{ secrets.REVALIDATE_SECRET }}
       MLFLOW_TRACKING_URI: ${{ secrets.MLFLOW_TRACKING_URI }}
       MLFLOW_TRACKING_USERNAME: ${{ secrets.MLFLOW_TRACKING_USERNAME }}
       MLFLOW_TRACKING_PASSWORD: ${{ secrets.MLFLOW_TRACKING_PASSWORD }}
@@ -54,7 +56,7 @@ jobs:
         id: pipeline
         env:
           RUN_DATE: ${{ inputs.date }}
-          RUN_STEPS: ${{ inputs.steps || 'ingest,validate,weather,clean,predict,shadow,evaluate,notify' }}
+          RUN_STEPS: ${{ inputs.steps || 'ingest,validate,weather,clean,predict,shadow,evaluate,notify,revalidate' }}
           EVENT: ${{ github.event_name }}
           GH_TOKEN: ${{ github.token }}  # archive step uploads GitHub Release assets
         run: |

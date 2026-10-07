@@ -29,6 +29,7 @@ from sqlalchemy import Engine, text
 from cropcast import db
 from cropcast.alerts.admin import send_admin_message
 from cropcast.alerts.channel import notify, record_member_count
+from cropcast.alerts.revalidate import revalidate_dashboard
 from cropcast.archive import TABLES as ARCHIVE_TABLES
 from cropcast.archive import archive_table, load_archive
 from cropcast.clean.aliases import evaluate_candidates, load_candidates
@@ -546,6 +547,12 @@ def run_notify(ctx: RunContext) -> StepResult:
     return StepResult("notify", metrics=metrics)
 
 
+def run_revalidate(ctx: RunContext) -> StepResult:
+    """Refresh the Vercel dashboard's ISR cache; a failure is a warning, never a failed run."""
+    status, reason = revalidate_dashboard(ctx.dry_run)
+    return StepResult("revalidate", metrics={"status": status, "reason": reason})
+
+
 STEPS: dict[str, Callable[[RunContext], StepResult]] = {
     "ingest": run_ingest,
     "validate": run_validate,
@@ -558,6 +565,7 @@ STEPS: dict[str, Callable[[RunContext], StepResult]] = {
     "promotion_check": run_promotion_check,
     "drift": run_drift,
     "notify": run_notify,
+    "revalidate": run_revalidate,
     "archive": run_archive,
     "features": run_features,
     "train": run_train,
@@ -565,7 +573,17 @@ STEPS: dict[str, Callable[[RunContext], StepResult]] = {
 }
 # `--steps all` = the daily data pipeline. Model steps are run explicitly (Phase 3 adds
 # them to the daily workflow together with the promotion gate).
-DAILY_STEPS = ["ingest", "validate", "weather", "clean", "predict", "shadow", "evaluate", "notify"]
+DAILY_STEPS = [
+    "ingest",
+    "validate",
+    "weather",
+    "clean",
+    "predict",
+    "shadow",
+    "evaluate",
+    "notify",
+    "revalidate",
+]
 ALL_STEPS = list(STEPS)
 
 

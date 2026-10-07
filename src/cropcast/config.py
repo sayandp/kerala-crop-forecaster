@@ -118,6 +118,10 @@ class Settings(BaseSettings):
     api_cache_ttl_s: int = 600
     api_rate_limit: str = "60/minute"
 
+    # --- Dashboard (Vercel) on-demand revalidation ---
+    vercel_revalidate_url: str | None = None  # https://<project>.vercel.app/api/revalidate
+    revalidate_secret: SecretStr | None = None
+
     # --- Telegram ---
     telegram_bot_token: SecretStr | None = None
     telegram_admin_chat_id: str | None = None
