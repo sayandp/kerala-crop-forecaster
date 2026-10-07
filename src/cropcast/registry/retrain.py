@@ -131,13 +131,14 @@ def retrain_and_register(engine: Engine, run_date: date, run_id: int | None) -> 
             record(engine, decision, run_id)
             if decision.decision == "promote":
                 set_alias(client, name, "champion", chall_v)
-            mlflow.log_metrics(
-                {
-                    f"h{h}_band_coverage_80": coverage,
-                    f"h{h}_gate_rel_pct": decision.metrics["rel_improvement_pct"],
-                    f"h{h}_gate_dm_p": decision.metrics["dm_p"],
-                }
-            )
+            # Client API with an explicit run id: after log_model, MLflow 3's fluent API tags
+            # metrics with the active LoggedModel's id, which DagsHub rejects (BAD_REQUEST).
+            for key, value in {
+                f"h{h}_band_coverage_80": coverage,
+                f"h{h}_gate_rel_pct": decision.metrics["rel_improvement_pct"],
+                f"h{h}_gate_dm_p": decision.metrics["dm_p"],
+            }.items():
+                client.log_metric(parent.info.run_id, key, float(value))
             out[f"h{h}"] = {
                 "champion": alias_version(client, name, "champion"),
                 "challenger": chall_v,
@@ -170,7 +171,7 @@ def retrain_and_register(engine: Engine, run_date: date, run_id: int | None) -> 
         set_alias(client, MOVE_MODEL, "challenger", mv)
         out["move"] = {"challenger": mv, "spec_hash": sh}
         out["minutes"] = round((time.monotonic() - t0) / 60, 1)
-        mlflow.log_metric("retrain_minutes", out["minutes"])
+        client.log_metric(parent.info.run_id, "retrain_minutes", float(out["minutes"]))
         out["mlflow_run"] = parent.info.run_id
     log.info("retrain done", extra=out)
     return out
