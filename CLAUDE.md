@@ -169,18 +169,29 @@ Never hardcode secrets. Never commit `.env`. Read env only via `cropcast.config.
 
 ## Monitoring
 
-- Evidently data-drift (`drift` step, scheduled Sundays): reference = the 90 days before, current = last 14 days of
-  model inputs (calendar features excluded — they drift by construction); target drift = KS on weekly price
-  changes. HTML → GitHub Release `reports-<date>`; summary → `drift_reports` (migration 007).
+- Evidently drift (`drift` step, scheduled Sundays): reference = the 90 days before, current = last 14 days.
+  **Feature drift is informational** and computed only on stationary / relative features (`*_rel` lags,
+  `pct_change_*`, `roll_cv_*`, `spread`, arrival ratios — `monitor/drift.py::is_stationary`); share ≥ **50 %** is
+  flagged on the dashboard `/drift` and in the weekly summary (log + release notes), never alerted.
+  Target drift = K-S on weekly price changes log(p_t / p_t−7). HTML → GitHub Release `reports-<date>`;
+  summary → `drift_reports` (migration 007; flag, coverage and reasons in `details`).
 - Live accuracy (`evaluate` step, daily): matured `forecasts` ⋈ `prices_clean` → rolling 28-day MAPE vs
   naive and p10–p90 coverage per crop × horizon; matured `shadow_predictions` → the pre-registered
   statistics (class-balanced DM vs always-flat and trend persistence, HAC lag 6, Holm across 4 crops,
   precision bar, minimum evidence) → `model_metrics (split='live')`. Only shadow rows with the current
   **spec hash** count.
-- Escalation: drift on >30% of features **or** live MAPE > 1.5× backtest for 7 consecutive days → Telegram ping to admin
-  + GitHub issue (label `drift`; one open issue, later escalations comment on it). Known: the first report had
-  74 % of inputs drifted (lags/rolling stats of a seasonal series) — the 30 % rule fires weekly; revisit the rule,
-  don't suppress it.
+- **Escalation is on performance only** (Telegram admin + GitHub issue, label `drift`; one open issue, later
+  escalations comment on it), checked weekly by the `drift` step:
+  1. champion live 28-day MAPE (h = 7, all crops) > 1.5× its backtest MAPE for 7 consecutive days, **or**
+  2. live p10–p90 coverage (h = 7, all crops, last 28 days) outside **70–90 %** (nominal 80 %) — judged only
+     once 28 days of matured forecasts exist, **or**
+  3. target drift: K-S p < **0.01** on weekly price changes.
+- **Why (2026-10-07):** the first report flagged 74 % of inputs with the old rule (all features, 30 %). The
+  champion is naive, so input drift cannot hurt it; price levels, lags, rolling means, weather and calendar
+  inputs of a seasonal series move with the season by construction, so the alert fired every week and said
+  nothing about forecast quality (alert fatigue). What users feel is error and band calibration, so those
+  escalate; a shift in the distribution of weekly price changes (the thing being forecast) escalates at a
+  stricter p < 0.01 because ~20 series × 14 days make K-S very sensitive. Relative-feature drift stays visible.
 - Any pipeline failure → `pipeline_runs.status='failed'` + Telegram ping to `TELEGRAM_ADMIN_CHAT_ID`.
 
 ## API contract (FastAPI)

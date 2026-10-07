@@ -77,14 +77,16 @@
   },
   "drift": {
     "title": "Data drift",
-    "intro": "Every Sunday the last 14 days of model inputs are compared with the 90 days before (Evidently). Calendar inputs are left out: they change with the date by design.",
-    "share": "Share of inputs that drifted",
+    "intro": "Every Sunday the last 14 days are compared with the 90 days before (Evidently). Only relative inputs are checked (price changes, volatility, spread); price levels, calendar and weather change with the season by design. Input drift is informational. Alerts come only from accuracy: live error above 1.5× the back-test for 7 days, range coverage outside 70–90 %, or a significant shift in weekly price changes (p < 0.01).",
+    "share": "Share of relative inputs that drifted (informational)",
     "target": "Weekly price-change distribution",
     "drifted": "Drifted",
     "stable": "Stable",
     "escalated": "Escalated to the maintainer",
     "report": "Open the full report",
-    "none": "No drift report yet."
+    "none": "No drift report yet.",
+    "flag": "Flagged: half or more of the inputs drifted. Informational only.",
+    "reasons": "Why it was escalated"
   },
   "health": {
     "title": "System health",

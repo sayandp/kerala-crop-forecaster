@@ -5,6 +5,9 @@ import { dict } from "@/lib/i18n";
 import { langStaticParams, pageMetadata, resolveLang, type LangParams } from "@/lib/page";
 import { driftHistory } from "@/lib/queries";
 
+// Input drift is informational (see CLAUDE.md "Monitoring"); flagged at >= 50 %.
+const FEATURE_DRIFT_INFO = 0.5;
+
 export const revalidate = 3600;
 export const generateStaticParams = langStaticParams;
 
@@ -46,7 +49,24 @@ export default async function Drift({ params }: LangParams) {
                 )}
               </Card>
             </div>
-            {last.escalated && <p className="rounded-lg bg-warn/10 px-3 py-2 text-sm text-warn">{t.escalated}</p>}
+            {last.drift_share >= FEATURE_DRIFT_INFO && (
+              <p className="rounded-lg bg-line/40 px-3 py-2 text-sm text-muted">{t.flag}</p>
+            )}
+            {last.escalated && (
+              <div className="rounded-lg bg-warn/10 px-3 py-2 text-sm text-warn">
+                <p className="font-bold">{t.escalated}</p>
+                {last.reasons && last.reasons.length > 0 && (
+                  <>
+                    <p className="mt-1">{t.reasons}:</p>
+                    <ul className="list-disc pl-5">
+                      {last.reasons.map((r) => (
+                        <li key={r}>{r}</li>
+                      ))}
+                    </ul>
+                  </>
+                )}
+              </div>
+            )}
             {last.html_url && (
               <a className="inline-block underline" href={last.html_url}>
                 {t.report}
@@ -57,7 +77,7 @@ export default async function Drift({ params }: LangParams) {
                 <TrendChart
                   data={reports.map((r) => ({ d: r.report_date, share: r.drift_share * 100 }))}
                   series={[{ key: "share", label: t.share, color: "var(--color-accent)" }]}
-                  reference={{ y: 30, label: "30 %" }}
+                  reference={{ y: FEATURE_DRIFT_INFO * 100, label: "50 %" }}
                   unit="%"
                 />
               </Section>

@@ -1,11 +1,17 @@
 """Weekly drift report (Evidently) + escalation.
 
-* Feature drift: reference = the 90 days before the current window (training window),
-  current = the last 14 days, on the h=7 feature rows of all modelled series.
+* Feature drift (INFORMATIONAL): reference = the 90 days before the current window, current =
+  the last 14 days, on the h=7 feature rows of all modelled series -- only stationary / relative
+  features (lags relative to the last price, pct changes, CVs, spread, arrival ratios). Price
+  levels, calendar, weather and data-coverage inputs drift by construction for a seasonal series,
+  so they are left out. Share >= 50 % is flagged on the dashboard and in the weekly summary; it
+  never alerts.
 * Target drift: weekly price change log(p_t / p_{t-7}) per series, same windows (K-S test).
 * HTML -> GitHub Release `reports-<date>` (not the repo, not Neon); summary -> drift_reports.
-* Escalation: drift share > 30 % OR champion live MAPE (h=7, all crops) > 1.5x its backtest
-  MAPE on each of the last 7 days -> Telegram admin alert + GitHub issue.
+* Escalation (Telegram admin + GitHub issue) is on performance only:
+  champion live 28-day MAPE (h=7, all crops) > 1.5x its backtest MAPE on each of the last 7 days,
+  OR live p10-p90 coverage (h=7, all crops, last 28 days) outside 70-90 % once 28 days of matured
+  forecasts exist, OR target drift with K-S p < 0.01.
 """
 
 from __future__ import annotations
@@ -32,25 +38,25 @@ log = logging.getLogger(__name__)
 
 REF_DAYS = 90
 CUR_DAYS = 14
-DRIFT_SHARE_ALERT = 0.30
+FEATURE_DRIFT_INFO = 0.50  # informational flag only
 MAPE_RATIO_ALERT = 1.5
 MAPE_RATIO_DAYS = 7
-# Calendar features are deterministic functions of the date: a 90-day reference window always
-# "drifts" from the latest 14 days, so they are excluded from the drift share (reported apart).
-CALENDAR_FEATURES = [
-    "dow",
-    "month",
-    "weekofyear",
-    "fest_onam",
-    "fest_vishu",
-    "fest_christmas",
-    "fest_ramzan",
-    "fest_bakrid",
-    "monsoon",
-    "portal_v2",
-    "horizon",
-]
-DRIFT_FEATURES = [c for c in NUMERIC_FEATURES if c not in CALENDAR_FEATURES]
+COVERAGE_BAND = (70.0, 90.0)  # % of actuals inside p10-p90 (nominal 80 %)
+COVERAGE_WINDOW_DAYS = 28
+TARGET_P_ALERT = 0.01
+
+
+def is_stationary(feature: str) -> bool:
+    """Relative / scale-free features: comparable across a seasonal price level."""
+    return (
+        feature.endswith("_rel")
+        or feature.startswith(("pct_change", "roll_cv"))
+        or feature == "spread"
+        or ("arrivals" in feature and "ratio" in feature)
+    )
+
+
+DRIFT_FEATURES = [c for c in NUMERIC_FEATURES if is_stationary(c)]
 
 
 @dataclass
@@ -198,6 +204,51 @@ def mape_ratio_streak(engine: Engine, horizon: int = 7) -> tuple[int, float | No
     return streak, float(backtest)
 
 
+def live_coverage(engine: Engine, horizon: int = 7) -> tuple[float | None, bool]:
+    """Latest live p10-p90 coverage (%) and whether a full 28-day window of matured forecasts
+    exists (a live coverage row computed >= 27 days ago); judged only when the window is full."""
+    with engine.connect() as conn:
+        row = conn.execute(
+            text(
+                "SELECT value, (SELECT min(computed_at) FROM model_metrics WHERE split = 'live' "
+                "AND model_name = 'champion' AND commodity = 'all' AND horizon = :h "
+                "AND metric = 'coverage_80_28d') <= now() - make_interval(days => :w) AS full "
+                "FROM model_metrics WHERE split = 'live' AND model_name = 'champion' "
+                "AND commodity = 'all' AND horizon = :h AND metric = 'coverage_80_28d' "
+                "ORDER BY computed_at DESC LIMIT 1"
+            ),
+            {"h": horizon, "w": COVERAGE_WINDOW_DAYS - 1},
+        ).first()
+    if row is None:
+        return None, False
+    return float(row[0]), bool(row[1])
+
+
+def escalation_reasons(
+    result: DriftResult,
+    streak: int,
+    backtest: float | None,
+    coverage: float | None,
+    coverage_full: bool,
+) -> list[str]:
+    """Performance-based escalation; feature drift never escalates."""
+    reasons = []
+    if streak >= MAPE_RATIO_DAYS and backtest is not None:
+        reasons.append(
+            f"champion live 28-day MAPE > {MAPE_RATIO_ALERT}x backtest ({backtest:.2f} %) "
+            f"for {streak} consecutive days"
+        )
+    lo, hi = COVERAGE_BAND
+    if coverage is not None and coverage_full and not lo <= coverage <= hi:
+        reasons.append(f"p10-p90 coverage {coverage:.1f} % outside {lo:.0f}-{hi:.0f} % (28 days)")
+    if result.target_p_value is not None and result.target_p_value < TARGET_P_ALERT:
+        reasons.append(
+            f"weekly price-change distribution shifted (K-S p = {result.target_p_value:.4f} "
+            f"< {TARGET_P_ALERT})"
+        )
+    return reasons
+
+
 def upload_html(result: DriftResult, files: list[Path]) -> str | None:
     """Attach the HTML reports to GitHub Release reports-<date>; return the asset URL."""
     if shutil.which("gh") is None:
@@ -206,7 +257,11 @@ def upload_html(result: DriftResult, files: list[Path]) -> str | None:
     tag = f"reports-{result.report_date}"
     notes = (
         f"Evidently drift report: reference {result.ref_start}..{result.ref_end}, "
-        f"current {result.cur_start}..{result.cur_end}."
+        f"current {result.cur_start}..{result.cur_end}. "
+        f"Stationary-feature drift (informational): {result.n_drifted}/{result.n_features} "
+        f"({result.drift_share:.0%}"
+        f"{', flagged >= 50 %' if result.drift_share >= FEATURE_DRIFT_INFO else ''}). "
+        f"Weekly price-change K-S p = {result.target_p_value}."
     )
     exists = subprocess.run(["gh", "release", "view", tag], capture_output=True).returncode == 0
     if exists:
@@ -319,11 +374,27 @@ def run_weekly(
     with tempfile.TemporaryDirectory() as tmp:
         result, details = compute(snap, series, Path(tmp))
         streak, backtest = mape_ratio_streak(engine)
-        reasons = []
-        if result.drift_share > DRIFT_SHARE_ALERT:
-            reasons.append(f"feature drift share {result.drift_share:.0%} > 30 %")
-        if streak >= MAPE_RATIO_DAYS:
-            reasons.append(f"champion live MAPE > 1.5x backtest ({backtest:.2f}) for {streak} days")
+        coverage, coverage_full = live_coverage(engine)
+        reasons = escalation_reasons(result, streak, backtest, coverage, coverage_full)
+        feature_flag = result.drift_share >= FEATURE_DRIFT_INFO
+        details = {
+            **details,
+            "feature_drift_flag": feature_flag,
+            "coverage_28d": coverage,
+            "coverage_window_full": coverage_full,
+            "escalation_reasons": reasons,
+        }
+        log.info(
+            "weekly drift summary",
+            extra={
+                "feature_drift_share": round(result.drift_share, 3),
+                "feature_drift_flag": feature_flag,
+                "target_p": result.target_p_value,
+                "coverage_28d": coverage,
+                "mape_ratio_days": streak,
+                "escalated": bool(reasons),
+            },
+        )
         url = None
         if not dry_run:
             files = [result.html_path] if result.html_path else []
@@ -340,6 +411,9 @@ def run_weekly(
                 open_issue(f"Drift escalation {result.report_date}", msg)
     return {
         "drift_share": round(result.drift_share, 3),
+        "feature_drift_flag": result.drift_share >= FEATURE_DRIFT_INFO,
+        "coverage_28d": coverage,
+        "reasons": reasons,
         "n_drifted": result.n_drifted,
         "n_features": result.n_features,
         "drifted": result.drifted,

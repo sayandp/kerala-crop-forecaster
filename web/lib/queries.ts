@@ -198,12 +198,14 @@ export interface DriftRow {
   target_p_value: number | null;
   escalated: boolean;
   html_url: string | null;
+  reasons: string[] | null;
 }
 
 export async function driftHistory(): Promise<DriftRow[]> {
   return rows<DriftRow>(
     (q) => q`SELECT to_char(report_date, 'YYYY-MM-DD') AS report_date, drift_share, n_drifted,
-                    n_features, target_drift, target_p_value, escalated, html_url
+                    n_features, target_drift, target_p_value, escalated, html_url,
+                    details->'escalation_reasons' AS reasons
              FROM drift_reports ORDER BY report_date`,
   );
 }
