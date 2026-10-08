@@ -12,7 +12,7 @@ on:
       steps:
         description: "Comma-separated steps"
         required: false
-        default: "ingest,validate,weather,clean,predict,shadow,evaluate,notify,revalidate"
+        default: "ingest,validate,weather,clean,predict,user_alerts,shadow,evaluate,notify,revalidate"
 
 concurrency:
   group: daily-pipeline
@@ -56,7 +56,7 @@ jobs:
         id: pipeline
         env:
           RUN_DATE: ${{ inputs.date }}
-          RUN_STEPS: ${{ inputs.steps || 'ingest,validate,weather,clean,predict,shadow,evaluate,notify,revalidate' }}
+          RUN_STEPS: ${{ inputs.steps || 'ingest,validate,weather,clean,predict,user_alerts,shadow,evaluate,notify,revalidate' }}
           EVENT: ${{ github.event_name }}
           GH_TOKEN: ${{ github.token }}  # archive step uploads GitHub Release assets
         run: |
@@ -66,6 +66,7 @@ jobs:
             if [ "$(date -u +%u)" = "7" ]; then
               RUN_STEPS="${RUN_STEPS/clean,/clean,retrain,}"
               RUN_STEPS="${RUN_STEPS/evaluate,/evaluate,promotion_check,drift,}"
+              RUN_STEPS="$RUN_STEPS,weekly_summary"  # admin summary after everything else
             fi
             # Monthly (1st): retention - prices_raw > 90 d, forecasts / shadow > 180 d
             # -> GitHub Release (verified) -> deleted from Neon.

@@ -28,10 +28,11 @@ from sqlalchemy import Engine, text
 
 from cropcast import db
 from cropcast.alerts.admin import send_admin_message
-from cropcast.alerts.channel import notify, record_member_count
+from cropcast.alerts.channel import new_data_today, notify, record_member_count
 from cropcast.alerts.revalidate import revalidate_dashboard
 from cropcast.archive import TABLES as ARCHIVE_TABLES
 from cropcast.archive import archive_table, load_archive
+from cropcast.bot.alerts import run_user_alerts, weekly_summary
 from cropcast.clean.aliases import evaluate_candidates, load_candidates
 from cropcast.clean.build import build_clean, eligible_duplicates
 from cropcast.config import PROJECT_ROOT, settings
@@ -553,11 +554,34 @@ def run_revalidate(ctx: RunContext) -> StepResult:
     return StepResult("revalidate", metrics={"status": status, "reason": reason})
 
 
+def run_user_alerts_step(ctx: RunContext) -> StepResult:
+    """Bot: price-threshold alerts on real prices (once per crossing) + personal digests.
+
+    Digests are skipped on days without new prices (holidays) so users are not sent stale news;
+    alerts only ever react to a new observation anyway."""
+    engine = ctx.engine or db.get_engine()
+    res = run_user_alerts(
+        engine, ctx.run_date, ctx.dry_run, with_digests=new_data_today(engine, ctx.run_date)
+    )
+    return StepResult("user_alerts", metrics=res.as_metrics())
+
+
+def run_weekly_summary(ctx: RunContext) -> StepResult:
+    """Sunday admin summary on Telegram: channel, bot users, alerts, pipeline health, Neon."""
+    msg = weekly_summary(ctx.engine or db.get_engine())
+    sent = False if ctx.dry_run else send_admin_message(msg)
+    if ctx.dry_run:
+        log.info("weekly summary (not sent)", extra={"text": msg})
+    return StepResult("weekly_summary", metrics={"sent": sent})
+
+
 STEPS: dict[str, Callable[[RunContext], StepResult]] = {
     "ingest": run_ingest,
     "validate": run_validate,
     "weather": run_weather,
     "clean": run_clean,
+    "user_alerts": run_user_alerts_step,
+    "weekly_summary": run_weekly_summary,
     "retrain": run_retrain,
     "predict": run_predict,
     "shadow": run_shadow,
@@ -579,6 +603,7 @@ DAILY_STEPS = [
     "weather",
     "clean",
     "predict",
+    "user_alerts",
     "shadow",
     "evaluate",
     "notify",
