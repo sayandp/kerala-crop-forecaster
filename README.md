@@ -4,6 +4,7 @@
 [![ci](https://github.com/sayandp/kerala-crop-forecaster/actions/workflows/ci.yml/badge.svg)](https://github.com/sayandp/kerala-crop-forecaster/actions/workflows/ci.yml)
 [![p10–p90 coverage](https://img.shields.io/endpoint?url=https%3A%2F%2Fcropcast-api-21tx.onrender.com%2Fbadge%2Fcoverage.json)](https://kerala-crop-forecaster.vercel.app/accuracy)
 [![Telegram subscribers](https://img.shields.io/endpoint?url=https%3A%2F%2Fcropcast-api-21tx.onrender.com%2Fbadge%2Fsubscribers.json)](https://kerala-crop-forecaster.vercel.app/health)
+[![bot users (30 d)](https://img.shields.io/endpoint?url=https%3A%2F%2Fcropcast-api-21tx.onrender.com%2Fbadge%2Fbot-users.json)](https://t.me/keralacropprices_bot)
 
 A self-retraining MLOps system for daily mandi prices of five Kerala crops: Nendran banana,
 coconut, black pepper, rubber RSS-4 and tapioca. It runs every evening on free tiers (₹0). It
@@ -13,6 +14,7 @@ an API and a Telegram channel.
 **[Dashboard](https://kerala-crop-forecaster.vercel.app)** ·
 **[API docs](https://cropcast-api-21tx.onrender.com/docs)** ·
 **[Telegram channel](https://t.me/keralavipanivila)** ·
+**[Telegram bot](https://t.me/keralacropprices_bot)** ·
 **[MLflow on DagsHub](https://dagshub.com/sayandp/kerala-crop-forecaster.mlflow)** ·
 **[Phase 2.5 report](reports/phase2_5_signal_hunt.md)** ·
 **[Pre-registration](reports/preregistration_e4a.md)**
@@ -64,6 +66,9 @@ flowchart LR
   DB -- read-only role --> API[FastAPI · Render]
   DB -- read-only role --> WEB[Next.js · Vercel ISR]
   N --> TG[Telegram channel]
+  P --> UA[user_alerts<br/>crossings + digests]
+  UA --> BOT
+  BOT[Telegram bot<br/>webhook on Render] <--> API
   R --> WEB
 ```
 
@@ -80,7 +85,33 @@ flowchart LR
 | API | Render free (Singapore), `docker/api.Dockerfile` | `/health /crops /markets /forecast /history /metrics /badge/*.json`. 10-min cache, 60 req/min/IP. Image 186 MB; `/health` answers 0.8 s after start at 512 MB. |
 | Dashboard | Vercel Hobby, `web/` | Next.js App Router, Malayalam at `/`, English at `/en`. ISR hourly, plus `POST /api/revalidate` after each daily run. Lighthouse mobile on `/`: performance 93–94, accessibility 100, SEO 100. |
 | Telegram | one public channel | Daily post: latest ₹/kg and the 7-day p10–p90 per crop. Stale (> 3 days) and implausible markets are left out. |
+| Telegram bot | [@keralacropprices_bot](https://t.me/keralacropprices_bot), webhook on the Render API | Malayalam first. Prices on demand, price alerts on real prices, daily digests; see below. |
 | Drift | GitHub releases `reports-<date>` | Weekly Evidently HTML; summary in `drift_reports`. |
+
+## Telegram bot
+
+Talk to [@keralacropprices_bot](https://t.me/keralacropprices_bot). It answers in Malayalam by
+default; `/lang en` switches to English. Typing a crop name works too ("നേന്ത്രൻ", "kappa"). Sending
+just `/price` or `/alert` gives buttons, so nothing has to be typed.
+
+| Command | What it does |
+|---|---|
+| `/price <crop> [market]` | Latest price, its date and the range expected in 7 days; stale markets are flagged |
+| `/markets <crop>` | Markets with a price from the last 3 days |
+| `/alert <crop> <market> above\|below <₹/kg>` | Message when the **real** price crosses the level: once per crossing, re-arms after it crosses back (max 5) |
+| `/alerts`, `/stop <id>`, `/stopall` | List or stop alerts |
+| `/subscribe <crop>`, `/unsubscribe <crop>` | Daily personal price message |
+| `/lang en\|ml`, `/help`, `/about` | Language, commands, how it works and its limits |
+| `/deletedata` | Deletes everything stored about you |
+
+- **Privacy.** Per chat the bot stores only the chat id, language, alerts, digest crops and
+  created/last-active times. It stores no names, usernames, phone numbers or message text. The
+  database role the bot uses can write only its own four tables.
+- **Honesty.** Every price message ends with "ഉറവിടം: Agmarknet · ഉറപ്പല്ല / not a guarantee".
+  Alerts never use the model. Model move alerts stay off until the pre-registered live test passes
+  for that crop.
+- **Metrics.** Active users (7 and 30 days), alerts created and triggered: `/badge/bot-users.json`,
+  the dashboard's `/health` page, and a Sunday admin summary.
 
 ## Quickstart
 
@@ -119,7 +150,7 @@ writes there. The local Postgres (`D:\pg`, `scripts/pg_local.ps1`) is for develo
 | `DATABASE_URL` | daily pipeline (Neon, read-write) |
 | `DATABASE_URL_RO` | read-only role (reference copy; the API reads it on Render, the dashboard on Vercel) |
 | `MLFLOW_TRACKING_URI`, `MLFLOW_TRACKING_USERNAME`, `MLFLOW_TRACKING_PASSWORD` | retrain, predict, shadow (DagsHub) |
-| `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHANNEL_ID`, `TELEGRAM_ADMIN_CHAT_ID` | channel post, admin alerts (without them: dry-run logs) |
+| `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHANNEL_ID`, `TELEGRAM_ADMIN_CHAT_ID` | channel post, bot alerts and digests, admin alerts (without them: dry-run logs) |
 | `VERCEL_REVALIDATE_URL`, `REVALIDATE_SECRET` | `revalidate` step (warning only if missing or failing) |
 | `RENDER_DEPLOY_HOOK` | `deploy.yml` after CI passes on main |
 | `DATAGOV_API_KEY` | data.gov.in fallback (optional) |

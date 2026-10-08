@@ -41,10 +41,12 @@ src/cropcast/
   registry/promote.py  # champion/challenger gate
   predict/batch.py     # writes forecasts table
   monitor/drift.py     # Evidently reports + live accuracy
-  alerts/telegram_bot.py
+  alerts/              # channel.py (Stage-1 channel post), admin.py, revalidate.py
+  bot/                 # Telegram bot: handlers, store, names, alerts (crossings + digests), moves
   api/main.py          # FastAPI app
   pipeline.py          # orchestrates steps; `--steps` CLI flag
 config/series.yaml     # the modelled crop x market x variety series (editable)
+config/aliases.yaml    # crop / market names people type (ml + en) for the bot
 web/                   # Next.js dashboard (Vercel): app/[lang]/…, lib/queries.ts, i18n/{ml,en}.json
 sql/schema.sql         # canonical DB schema
 docker/                # api.Dockerfile, docker-compose.yml
@@ -74,7 +76,8 @@ Run `ruff`, `mypy` and `pytest` before declaring any task done.
 
 ## Environment variables (see `.env.example`)
 
-`DATABASE_URL`, `DATAGOV_API_KEY`, `MLFLOW_TRACKING_URI`, `MLFLOW_TRACKING_USERNAME`, `MLFLOW_TRACKING_PASSWORD`, `TELEGRAM_BOT_TOKEN`, `TELEGRAM_ADMIN_CHAT_ID`, `ENV` (`local|ci|prod`).
+`DATABASE_URL`, `DATAGOV_API_KEY`, `MLFLOW_TRACKING_URI`, `MLFLOW_TRACKING_USERNAME`, `MLFLOW_TRACKING_PASSWORD`, `TELEGRAM_BOT_TOKEN`, `TELEGRAM_ADMIN_CHAT_ID`, `ENV` (`local|ci|prod`). Phase 5: `DATABASE_URL_BOT`,
+`TELEGRAM_WEBHOOK_SECRET`, `CONFIG_DIR` (API image: `/app/config`).
 
 Also: `TEST_DATABASE_URL` (throwaway DB for tests; an autouse fixture points every test at it so tests
 can never reach Neon), `LOCAL_DB_URL` (dev Postgres in `D:\pg`, see `scripts/pg_local.ps1`).
@@ -206,14 +209,45 @@ Built (Phase 4, `api/main.py`; reads tables only — never loads MLflow models):
 - `docker/api.Dockerfile` (python:3.11-slim, uv, `--only-group api`, non-root, HEALTHCHECK; 186 MB; /health
   0.8 s after start at 512 MB — CI enforces < 400 MB and < 20 s). `render.yaml`: free, Singapore,
   autoDeploy off; `deploy.yml` calls `RENDER_DEPLOY_HOOK` after CI passes on main.
-- Later (Phase 5): `POST /telegram/webhook`.
+- `POST /telegram/webhook/{sha256(secret)[:32]}` (Phase 5): checks `X-Telegram-Bot-Api-Secret-Token` against
+  `TELEGRAM_WEBHOOK_SECRET` (wrong path 404, wrong header 403), answers 200 at once and handles the update in a
+  background task; exempt from the per-IP limit (all updates come from Telegram). `/badge/bot-users.json` = 30-day
+  active bot users.
 
-## Telegram bot
+## Telegram bot (Stage 2, Phase 5 — `src/cropcast/bot/`, @keralacropprices_bot)
 
-- Commands: `/start`, `/subscribe <crop> <market>`, `/price <crop>`, `/unsubscribe`, `/lang ml|en`.
-- Default language **Malayalam** (`lang='ml'`); templates in `alerts/templates/{ml,en}.yaml`.
-- Alert only when forecast move ≥ subscriber `threshold_pct` (default 5%). Max 1 alert per subscriber per day.
-- Active user count = `SELECT count(*) FROM subscribers WHERE active` — this is the CV "N users" number.
+- **Webhook on the Render API** (no polling, no python-telegram-bot: plain `httpx`; fuzzy names via stdlib
+  `difflib`). `scripts/set_webhook.py --generate-secret | --set --commands | --info | --delete`.
+  Dedupe on `update_id` (`telegram_updates`, pruned after 7 days) — cold starts make Telegram retry.
+- **Roles:** bot writes use `cropcast_bot` (`DATABASE_URL_BOT`, `scripts/setup_bot_role.py`): SELECT/INSERT/
+  UPDATE/DELETE on `subscribers`, `user_alerts`, `telegram_updates`, `bot_events` only (SELECT is needed for
+  UPDATE…WHERE / ON CONFLICT / RETURNING). Price / forecast reads keep using `cropcast_ro`, which sees only the
+  aggregate views `bot_usage`, `bot_usage_daily` (no chat ids).
+- **Commands** (Malayalam default, `/lang en|ml`): `/start`, `/price <crop> [market]`, `/markets <crop>`,
+  `/alert <crop> <market> above|below <₹/kg>` (max 5), `/alerts`, `/stop <id>`, `/stopall`, `/subscribe <crop>`,
+  `/unsubscribe <crop>`, `/help`, `/about`, `/deletedata`. Plain text naming a crop = `/price`. Inline keyboards
+  for crop → market → threshold (±5 / ±10 % of the current price). Names in both languages + typos:
+  `config/aliases.yaml` (exact → unique prefix → difflib ≥ 0.85; 0.75 matched "kannur" to "mookannur").
+  Texts: `bot/texts/{ml,en}.yaml`; **every price message ends with "ഉറവിടം: Agmarknet · ഉറപ്പല്ല / not a guarantee"**.
+- **Alerts are on REAL prices only** (`prices_clean`, never the model) and fire **once per crossing**:
+  armed → triggered (message) → re-armed only after the price crosses back. Each alert stores the last
+  observation it evaluated, so re-runs never repeat. A new alert whose condition already holds starts
+  `triggered` (waits for a crossing; the reply says so).
+- **Daily step `user_alerts`** (after `predict`, so digests carry today's 7-day range): alerts + personal digests
+  (one per user per day, skipped on days without new prices), ≤ 25 msg/s, 429 → wait `retry_after`, 403 → user
+  deactivated (`subscribers.active = false`; also on a `my_chat_member` "kicked" update; any new message
+  re-activates).
+- **Move alerts** ("likely to rise > 3 % this week") in digests only if `move_alerts_enabled.<crop>: true` in
+  `config/channel.yaml` (default all false) **and** that crop's newest live verdict in `promotion_log` is "pass"
+  (`bot/moves.py`; a flag without a pass is refused and logged — tested).
+- **Privacy:** stored per chat: chat_id, language, digest crops, alerts, created / last_active timestamps; events
+  hold command names only (never message text, names, usernames or phone numbers). `/deletedata` deletes the
+  subscriber row (alerts cascade) and its events.
+- **Rate limit:** 20 commands / chat / minute, in memory (one Render worker); one warning per window.
+- **Metrics:** `bot_events` → views `bot_usage` (users active, active 7 d / 30 d, alerts active / created /
+  triggered, digest users) and `bot_usage_daily`; dashboard `/health` "Bot usage"; README badge; Sunday
+  `weekly_summary` step → Telegram admin (channel members, bot users, alerts, pipeline health, Neon size).
+- **N users** for the CV = `SELECT count(*) FROM subscribers WHERE active` (= `bot_usage.users_active`).
 
 ---
 
@@ -240,7 +274,7 @@ Built (Phase 4, `api/main.py`; reads tables only — never loads MLflow models):
 ## CI/CD
 
 - `ci.yml` (PR + main): ruff, mypy, pytest; docker build + size/cold-start check; `web` job (node LTS, pnpm: lint, typecheck, build — no DB, pages build empty and fill via ISR).
-- `daily_pipeline.yml`: cron `17 14 * * *` (UTC = 19:47 IST; off the hour because GitHub delays on-the-hour crons) + `workflow_dispatch`; uploads `reports/` artifact. Steps: `ingest,validate,weather,clean,predict,shadow,evaluate,notify,revalidate`; scheduled Sundays add `retrain` (after clean) and `promotion_check,drift` (after evaluate); the 1st adds `archive`. Full git history (`fetch-depth: 0`) — the shadow step verifies the pre-registration commit.
+- `daily_pipeline.yml`: cron `17 14 * * *` (UTC = 19:47 IST; off the hour because GitHub delays on-the-hour crons) + `workflow_dispatch`; uploads `reports/` artifact. Steps: `ingest,validate,weather,clean,predict,user_alerts,shadow,evaluate,notify,revalidate`; scheduled Sundays add `retrain` (after clean), `promotion_check,drift` (after evaluate) and `weekly_summary` (last); the 1st adds `archive`. Full git history (`fetch-depth: 0`) — the shadow step verifies the pre-registration commit.
 - `deploy.yml`: after `ci` succeeds on main → POST `RENDER_DEPLOY_HOOK` (Render builds the image). The dashboard deploys via the Vercel GitHub integration (root `web/`).
 
 ## Don'ts
@@ -287,8 +321,8 @@ Rules:
   when nothing new was ingested today (IST), member count → `channel_stats`. Needs secrets
   `TELEGRAM_BOT_TOKEN` + `TELEGRAM_CHANNEL_ID`; without them (and in CI / `--dry-run`) the post is logged,
   not sent.
-- **Stage 2 — Phase 5:** the interactive bot (`/subscribe`, `/price`, `/lang`, threshold alerts) via
-  the Render webhook described under "Telegram bot".
+- **Stage 2 — Phase 5 (built):** the interactive bot @keralacropprices_bot on the Render webhook — see
+  "Telegram bot". The channel post is unchanged.
 
 ## Build order / status
 
@@ -310,7 +344,8 @@ Rules:
       best practices, SEO 100 — charts load only after first paint + idle; font `display: optional`.
       Revalidate step verified live (status ok). Open: `RENDER_DEPLOY_HOOK` secret must be the full hook URL
       (deploy.yml validates it); until then Render deploys are manual.
-- [ ] 5. Telegram bot (Stage 2) — drift + live accuracy already done in Phases 3–4
+- [ ] 5. Telegram bot (Stage 2): built 2026-10-09 (webhook, commands ml/en, crossing alerts, digests, roles,
+      metrics, tests); tick once it answers on Render and a daily run has fired a real alert
 - [ ] 6. CI/CD polish, README (diagram, live MAPE badge), user acquisition
 
 Update this checklist as phases complete.
