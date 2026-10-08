@@ -1,15 +1,24 @@
 {
   "run_date": "2026-10-09",
-  "finished_at": "2026-10-09T01:25:39+05:30",
+  "finished_at": "2026-10-09T01:28:21+05:30",
   "status": "success",
-  "run_id": 25,
+  "run_id": 26,
   "steps": [
-    "user_alerts"
+    "ingest",
+    "validate",
+    "weather",
+    "clean",
+    "predict",
+    "user_alerts",
+    "shadow",
+    "evaluate",
+    "notify",
+    "revalidate"
   ],
   "dry_run": false,
-  "db_size_mb": 144.8,
-  "rows_upserted": null,
-  "rows_new": null,
-  "git_sha": "e8c47f461684b24ba2a3b291d390b87c0d5e913d",
-  "run_url": "https://github.com/sayandp/kerala-crop-forecaster/actions/runs/37835516902"
+  "db_size_mb": 146.3,
+  "rows_upserted": 917,
+  "rows_new": 367,
+  "git_sha": "ca0c06f123fffbed9f9583303b8a6c7b9d354602",
+  "run_url": "https://github.com/sayandp/kerala-crop-forecaster/actions/runs/37835686088"
 }
