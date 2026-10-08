@@ -1,0 +1,44 @@
+# Names people type for crops and markets (Telegram bot, Phase 5). Matching is case-insensitive,
+# ignores spaces/punctuation and Malayalam ZWJ/ZWNJ / old-style chillu encodings, then falls back
+# to fuzzy matching (difflib). The FIRST Malayalam name of each entry is the display name.
+# Markets must be markets of config/series.yaml (the served series).
+crops:
+  banana:
+    ml: [നേന്ത്രക്കായ, നേന്ത്രൻ, നേന്ത്രപ്പഴം, ഏത്തക്ക, ഏത്തയ്ക്ക, ഏത്തപ്പഴം, ഏത്തവാഴ, വാഴക്കുല, കായ, പഴം]
+    en: [banana, nendran, nenthran, nendra, ethakka, ethakka banana, ethapazham, plantain, kaya, pazham]
+  coconut:
+    ml: [തേങ്ങ, നാളികേരം, തെങ്ങ്, നാളികേര]
+    en: [coconut, coconuts, thenga, nalikeram]
+  pepper:
+    ml: [കുരുമുളക്, കുരുമുളക്ക്]
+    en: [pepper, black pepper, blackpepper, kurumulaku, kurumulak, kurumulagu, milagu]
+  rubber:
+    ml: [റബ്ബർ, റബർ, റബ്ബര്, ഷീറ്റ്]
+    en: [rubber, rss4, rss-4, rss 4, sheet rubber]
+  tapioca:
+    ml: [കപ്പ, മരച്ചീനി, കൊള്ളി, പൂള]
+    en: [tapioca, kappa, cassava, maracheeni, kolli, poola]
+
+markets:
+  Kayamkulam:          {ml: [കായംകുളം], en: [kayamkulam]}
+  Chenkal VFPCK:       {ml: [ചെങ്കൽ], en: [chenkal, chenkal vfpck]}
+  Mookkannur VFPCK:    {ml: [മൂക്കന്നൂർ], en: [mookkannur, mookannur, mookkannur vfpck]}
+  Parassala:           {ml: [പാറശ്ശാല, പാറശാല], en: [parassala, parasala, parassalai]}
+  Thiruvaniyoor VFPCK: {ml: [തിരുവാണിയൂർ], en: [thiruvaniyoor, thiruvaniyur, thiruvaniyoor vfpck]}
+  Elamad VFPCK:        {ml: [ഇളമാട്], en: [elamad, elamadu, elamad vfpck]}
+  Kunnukara VFPCK:     {ml: [കുന്നുകര], en: [kunnukara, kunnukara vfpck]}
+  Vengannore VFPCK:    {ml: [വെങ്ങാനൂർ], en: [vengannore, venganoor, vengannoor, vengannore vfpck]}
+  Koduvayoor:          {ml: [കൊടുവായൂർ], en: [koduvayoor, koduvayur, kodumbu]}
+  Palakkad:            {ml: [പാലക്കാട്], en: [palakkad, palghat]}
+  North Paravur:       {ml: [വടക്കൻ പറവൂർ, നോർത്ത് പറവൂർ, പറവൂർ], en: [north paravur, n paravur, paravur, paravoor]}
+  Kannur:              {ml: [കണ്ണൂർ], en: [kannur, cannanore]}
+  Manjeswaram:         {ml: [മഞ്ചേശ്വരം], en: [manjeswaram, manjeshwar, manjeshwaram]}
+  Payyannur:           {ml: [പയ്യന്നൂർ], en: [payyannur, payyanur]}
+  Perumbavoor:         {ml: [പെരുമ്പാവൂർ], en: [perumbavoor, perumbavur]}
+  Pulpally:            {ml: [പുൽപ്പള്ളി], en: [pulpally, pulpalli, pulpalli wayanad]}
+  Kalpetta:            {ml: [കൽപ്പറ്റ], en: [kalpetta, kalpatta]}
+
+# /alert <crop> <market> above|below <Rs/kg>
+directions:
+  above: [above, over, more, more than, ">", up, rises, മുകളിൽ, കൂടിയാൽ, കൂടുതൽ, കയറിയാൽ, മേലെ]
+  below: [below, under, less, less than, "<", down, falls, താഴെ, കുറഞ്ഞാൽ, കുറവ്, താഴ്ന്നാൽ]

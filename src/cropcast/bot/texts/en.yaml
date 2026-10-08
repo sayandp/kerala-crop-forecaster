@@ -1,0 +1,89 @@
+# Bot texts, English. Same keys and placeholders as ml.yaml.
+footer: "ഉറവിടം: Agmarknet · ഉറപ്പല്ല / not a guarantee"
+start: |-
+  Hello! 🌾 Kerala market price bot.
+
+  Latest wholesale (mandi) prices of Nendran banana, coconut, black pepper, rubber and tapioca, and the price expected in 7 days.
+
+  • /price — check prices
+  • /alert — get told when a price crosses a level
+  • /subscribe — a daily price message
+  • /help — all commands
+
+  Channel: {channel}
+  Website: {dashboard}
+
+  Language / ഭാഷ:
+help: |-
+  Commands:
+  /price <crop> [market] — latest price and the 7-day expected range
+  /markets <crop> — markets with fresh prices
+  /alert <crop> <market> above|below <₹/kg> — alert when the price crosses it (max {max})
+  /alerts — your alerts · /stop <id> · /stopall
+  /subscribe <crop> — daily price message · /unsubscribe <crop>
+  /lang en|ml — change language
+  /about — how it works
+  /deletedata — delete all your data
+
+  Example: /price banana kayamkulam · /alert tapioca perumbavoor above 40
+  Send just /price or /alert to pick with buttons.
+about: |-
+  How it works:
+  • Every evening we collect Kerala wholesale (mandi) prices from Agmarknet (₹/quintal ÷ 100 = ₹/kg).
+  • Our forecast for 7 days ahead is "today's price": in two years of back-tests no machine-learning model beat it. The model only supplies the range (p10–p90): about 8 times in 10 the price should land inside it.
+  • Price alerts use real prices only, never the model.
+  • Not a guarantee. Check your local market before selling.
+  • We store only your chat id, language, alerts and subscriptions — no name or phone number. /deletedata erases everything.
+  Accuracy: {dashboard}/en/accuracy · Code: {repo}
+lang_set: "Language: English ✅"
+pick_crop: "Pick a crop:"
+pick_market: "{crop}: pick a market:"
+pick_threshold: "{crop} · {market}: now ₹{price}/kg ({date}). Alert me when it is…"
+btn_above: "▲ above ₹{amount}"
+btn_below: "▼ below ₹{amount}"
+price_title: "{crop} · price (₹/kg)"
+price_line: "{market}: ₹{price} ({date}) · in 7 days ₹{lo}–{hi}"
+price_line_noforecast: "{market}: ₹{price} ({date})"
+stale_mark: " ⚠️ old price"
+stale_note: "⚠️ = no new price for more than 3 days."
+price_detail: |-
+  {crop} · {market}
+  Latest price: ₹{price}/kg ({date})
+  Expected on {target}: ₹{lo}–{hi}/kg
+price_detail_noforecast: |-
+  {crop} · {market}
+  Latest price: ₹{price}/kg ({date})
+stale_warning: "⚠️ No new price in this market for {days} days."
+no_price: "{crop} · {market}: no price yet."
+unknown_crop: "I don't know \"{text}\". Try: banana, coconut, pepper, rubber, tapioca."
+unknown_market: "{crop}: no market \"{text}\". Available: {markets}"
+markets_title: "{crop}: markets with fresh prices"
+markets_none: "{crop}: no fresh price in the last 3 days."
+markets_line: "• {market} — ₹{price} ({date})"
+alert_usage: "Usage: /alert <crop> <market> above|below <₹/kg>\nExample: /alert banana kayamkulam above 60\nOr send just /alert and use the buttons."
+alert_created: "✅ Alert #{id}: {crop} · {market} — I'll tell you when {condition} (now ₹{price}/kg)."
+alert_created_already: "✅ Alert #{id}: {crop} · {market} is already at ₹{price}/kg. I'll tell you after it crosses back and {condition} again."
+condition_above: "the price goes above ₹{amount}/kg"
+condition_below: "the price goes below ₹{amount}/kg"
+alert_limit: "Maximum {max} alerts. See /alerts and /stop <id> to remove one."
+alerts_title: "Your alerts:"
+alerts_line: "#{id} {crop} · {market} · {short}{state}"
+alerts_state_triggered: " (sent — waiting for the price to cross back)"
+alerts_none: "No alerts. Add one with /alert."
+alert_stopped: "Alert #{id} stopped."
+alert_not_found: "No alert #{id}. See /alerts."
+stop_usage: "Usage: /stop <id> (ids are in /alerts)"
+alerts_all_stopped: "All alerts ({n}) stopped."
+alert_fired_above: "🔔 {crop} · {market}: ₹{price}/kg on {date} — above your ₹{amount}."
+alert_fired_below: "🔔 {crop} · {market}: ₹{price}/kg on {date} — below your ₹{amount}."
+alert_fired_tail: "(alert #{id}; re-arms after the price crosses back · /stop {id})"
+subscribed: "✅ {crop}: you'll get a price message every evening. Stop with /unsubscribe {crop_key}."
+already_subscribed: "{crop}: already subscribed."
+unsubscribed: "{crop}: daily message stopped."
+not_subscribed: "{crop}: not subscribed."
+digest_title: "🌾 Your daily prices · {date}"
+move_up: "📈 {market}: likely to rise > 3% this week (model, not a guarantee)"
+move_down: "📉 {market}: likely to fall > 3% this week (model, not a guarantee)"
+deleted: "All your data (alerts, subscriptions, usage records) has been deleted. /start to begin again."
+rate_limited: "Too many messages. Please try again in a minute."
+unknown_command: "Sorry, I didn't get that. See /help."

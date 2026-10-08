@@ -18,7 +18,13 @@ crops:
     - {market: Payyannur, variety: Other}
     - {market: Perumbavoor, variety: Tapioca}
 
-# Up/down move alerts stay OFF until the move classifier passes the pre-registered live
-# evaluation (reports/preregistration_e4a.md) AND a human flips this flag.
-move_alerts_enabled: false
+# Up/down move alerts ("likely to rise > 3 % this week", bot digests) per crop. Default OFF.
+# Turning one on is honoured ONLY if that crop's newest live verdict in promotion_log is "pass"
+# (pre-registered test, reports/preregistration_e4a.md); otherwise it is refused and logged
+# (cropcast.bot.moves.move_alerts_allowed). Banana is not judged (naive only).
+move_alerts_enabled:
+  coconut: false
+  pepper: false
+  rubber: false
+  tapioca: false
 repo_url: https://github.com/sayandp/kerala-crop-forecaster

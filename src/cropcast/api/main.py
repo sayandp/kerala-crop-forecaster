@@ -5,12 +5,13 @@ Run: uv run uvicorn cropcast.api.main:app --reload
 
 from __future__ import annotations
 
+import hmac
 import logging
 from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, datetime
-from typing import Annotated
+from typing import Annotated, Any
 
-from fastapi import FastAPI, HTTPException, Query, Request
+from fastapi import BackgroundTasks, Body, FastAPI, Header, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
@@ -30,6 +31,7 @@ from cropcast.api.schemas import (
     Metrics,
     ShadowProgress,
 )
+from cropcast.bot.telegram import webhook_path_token
 from cropcast.config import settings
 from cropcast.logging_setup import setup_logging
 
@@ -144,6 +146,54 @@ def badge_coverage(request: Request) -> Badge:
     return Badge(
         label="p10-p90 coverage (7d, 28d live)", message=f"{cov:.0f}% (target 80%)", color=color
     )
+
+
+@app.get("/badge/bot-users.json", response_model=Badge)
+def badge_bot_users(request: Request) -> Badge:
+    n = q.bot_usage().get("active_30d")
+    return Badge(label="bot users (30 d)", message="—" if n is None else str(n), color="blue")
+
+
+# --- Telegram bot (Phase 5) ---------------------------------------------------------------------
+
+
+_bot: Any = None
+
+
+def _process_update(update: dict[str, Any]) -> None:
+    """Runs after the 200 has been sent. Never raises (Telegram must not see errors)."""
+    global _bot
+    try:
+        if _bot is None:
+            from cropcast.bot.handlers import Bot
+            from cropcast.bot.store import Store
+
+            _bot = Bot(Store.for_api())
+        _bot.handle(update)
+    except Exception as exc:
+        log.error(
+            "telegram update failed",
+            extra={"error": type(exc).__name__, "detail": q.redact(str(exc))[:300]},
+        )
+
+
+@app.post("/telegram/webhook/{secret_path}", include_in_schema=False)
+@limiter.exempt  # type: ignore[untyped-decorator]  # Telegram's few IPs carry every user
+def telegram_webhook(
+    secret_path: str,
+    background: BackgroundTasks,
+    update: Annotated[dict[str, Any], Body()],
+    x_telegram_bot_api_secret_token: Annotated[str | None, Header()] = None,
+) -> dict[str, bool]:
+    token = webhook_path_token()
+    if token is None or not hmac.compare_digest(secret_path, token):
+        raise HTTPException(status_code=404)
+    expected = settings.telegram_webhook_secret
+    given = x_telegram_bot_api_secret_token or ""
+    if expected is None or not hmac.compare_digest(given, expected.get_secret_value()):
+        raise HTTPException(status_code=403, detail="bad secret token")
+    background.add_task(_process_update, update)  # answer 200 first; Telegram retries slow replies
+    return {"ok": True}
 
 
 @app.get("/badge/subscribers.json", response_model=Badge)

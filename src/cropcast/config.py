@@ -99,6 +99,8 @@ class Settings(BaseSettings):
 
     # --- Paths ---
     data_dir: Path = PROJECT_ROOT / "data"
+    # config/*.yaml (series, aliases, channel). The API image copies it to /app/config.
+    config_dir: Path = PROJECT_ROOT / "config"
     reports_dir: Path = PROJECT_ROOT / "reports"
     logs_dir: Path = PROJECT_ROOT / "logs"
 
@@ -131,6 +133,19 @@ class Settings(BaseSettings):
     telegram_bot_token: SecretStr | None = None
     telegram_admin_chat_id: str | None = None
     telegram_channel_id: str | None = None  # public channel for the daily Stage-1 post
+
+    # --- Telegram bot, Stage 2 (Phase 5): webhook on the Render API ---
+    # Writes go through the restricted role cropcast_bot (scripts/setup_bot_role.py): INSERT /
+    # UPDATE / DELETE on subscribers, user_alerts, telegram_updates, bot_events only.
+    database_url_bot: str | None = None
+    # Sent by Telegram in X-Telegram-Bot-Api-Secret-Token; its hash is also the URL path segment.
+    telegram_webhook_secret: SecretStr | None = None
+    api_base_url: str = "https://cropcast-api-21tx.onrender.com"
+    dashboard_url: str = "https://kerala-crop-forecaster.vercel.app"
+    telegram_channel_url: str = "https://t.me/keralavipanivila"
+    bot_rate_limit_per_min: int = 20  # commands per chat per minute
+    bot_max_alerts: int = 5  # active price alerts per chat
+    telegram_send_per_s: float = 25.0  # broadcast pace (Telegram allows ~30 msg/s)
 
     @field_validator("cors_origins", mode="before")
     @classmethod

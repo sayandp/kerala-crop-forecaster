@@ -13,6 +13,12 @@ services:
     envVars:
       - key: DATABASE_URL_RO          # read-only role cropcast_ro (set in the dashboard)
         sync: false
+      - key: DATABASE_URL_BOT         # bot writes: role cropcast_bot (scripts/setup_bot_role.py)
+        sync: false
+      - key: TELEGRAM_BOT_TOKEN
+        sync: false
+      - key: TELEGRAM_WEBHOOK_SECRET  # same value as in .env (scripts/set_webhook.py)
+        sync: false
       - key: CORS_ORIGINS
         value: https://kerala-crop-forecaster.vercel.app
       - key: ENV

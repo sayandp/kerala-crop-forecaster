@@ -12,8 +12,10 @@ COPY src ./src
 RUN VIRTUAL_ENV=/opt/venv uv pip install --no-cache --no-deps .
 
 FROM python:3.11-slim
-ENV PATH=/opt/venv/bin:$PATH PYTHONUNBUFFERED=1 ENV=prod
+ENV PATH=/opt/venv/bin:$PATH PYTHONUNBUFFERED=1 ENV=prod CONFIG_DIR=/app/config
 COPY --from=build /opt/venv /opt/venv
+# Bot (Phase 5): crop/market aliases, served series, move-alert flags.
+COPY config/aliases.yaml config/series.yaml config/channel.yaml /app/config/
 RUN useradd --create-home --uid 10001 app
 USER app
 WORKDIR /home/app

@@ -221,3 +221,10 @@ def shadow_progress() -> list[dict[str, Any]]:
 def latest_members() -> int | None:
     rows = _rows("SELECT member_count FROM channel_stats ORDER BY date DESC LIMIT 1")
     return int(rows[0]["member_count"]) if rows else None
+
+
+@ttl_cache
+def bot_usage() -> dict[str, Any]:
+    """Aggregates only (view bot_usage): the read-only role never sees chat ids."""
+    rows = _rows("SELECT * FROM bot_usage")
+    return rows[0] if rows else {}
