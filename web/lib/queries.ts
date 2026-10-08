@@ -236,3 +236,33 @@ export async function subscribers(): Promise<SubsRow[]> {
              FROM channel_stats ORDER BY date`,
   );
 }
+
+export interface BotUsage {
+  users_active: number;
+  active_7d: number;
+  active_30d: number;
+  commands_30d: number;
+  alerts_active: number;
+  alerts_created_30d: number;
+  alerts_triggered_30d: number;
+  digest_users: number;
+}
+
+/** Aggregates only (view bot_usage): the read-only role never sees chat ids. */
+export async function botUsage(): Promise<BotUsage | null> {
+  const r = await rows<BotUsage>((q) => q`SELECT * FROM bot_usage`);
+  return r[0] ?? null;
+}
+
+export interface BotDay {
+  d: string;
+  users: number;
+  commands: number;
+}
+
+export async function botUsageDaily(): Promise<BotDay[]> {
+  return rows<BotDay>(
+    (q) => q`SELECT to_char(day, 'YYYY-MM-DD') AS d, active_users AS users, commands
+             FROM bot_usage_daily ORDER BY day`,
+  );
+}

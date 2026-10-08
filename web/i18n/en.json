@@ -93,7 +93,14 @@
     "runs": "Daily pipeline runs",
     "db": "Database size (MB, free tier 512)",
     "subs": "Telegram subscribers",
-    "lastOk": "Last successful run"
+    "lastOk": "Last successful run",
+    "bot": "Bot usage",
+    "botActive": "Used the bot (7 days / 30 days)",
+    "botUsers": "Bot users",
+    "botAlerts": "Price alerts (active / sent in 30 days)",
+    "botDigest": "Daily digest subscribers",
+    "botDaily": "Daily active bot users",
+    "botPrivacy": "Counts only. The bot stores no names, usernames or phone numbers."
   },
   "common": {
     "noData": "No data yet.",
