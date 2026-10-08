@@ -4,3 +4,6 @@ out/
 .env*.local
 *.tsbuildinfo
 .vercel
+test-results/
+playwright-report/
+e2e/screenshots/
