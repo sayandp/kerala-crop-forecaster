@@ -444,3 +444,24 @@ def test_webhook_is_not_ip_rate_limited(hook: tuple[TestClient, Outbox, str]) ->
         for i in range(70)  # > the API's 60/min/IP
     }
     assert codes == {200}
+
+
+def test_deep_link_payloads_match_the_website_slugs() -> None:
+    assert names.market_slug("Chenkal VFPCK") == "chenkal-vfpck"
+    kind, crop, s = names.parse_start_payload("alert_banana_chenkal-vfpck") or ("", "", None)
+    assert (kind, crop, s and s.market) == ("alert", "banana", "Chenkal VFPCK")
+    assert names.parse_start_payload("alert_tapioca") == ("alert", "tapioca", None)
+    assert names.parse_start_payload("alert_rice_x") is None
+    assert names.parse_start_payload("hello") is None
+
+
+@pytest.mark.db
+def test_start_deep_link_opens_threshold_menu(bot: tuple[Bot, Outbox, Store]) -> None:
+    b, out, _ = bot
+    b.handle(_msg("/start alert_banana_kayamkulam", 1))
+    buttons = [btn["callback_data"] for row in out.messages[-1][2] for btn in row]
+    assert buttons and all(x.startswith("at:banana:") for x in buttons)
+    b.handle(_msg("/start alert_banana", 2))
+    assert out.messages[-1][2][0][0]["callback_data"].startswith("am:banana:")
+    b.handle(_msg("/start", 3))
+    assert "നമസ്കാരം" in out.texts[-1]
