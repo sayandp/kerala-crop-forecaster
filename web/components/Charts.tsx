@@ -71,15 +71,32 @@ export function PriceChart({
   labels: { price: string; band: string };
   long?: boolean;
 }) {
-  const fmt = (d: string) => (long ? d.slice(0, 7) : d.slice(5));
+  // Real time axis: the 1/7/14-day forecast band gets its true width, not 3 category slots.
+  const points = data.map((p) => ({ ...p, t: Date.parse(`${p.d}T00:00:00Z`) }));
+  const fmt = (t: number) => {
+    const iso = new Date(t).toISOString();
+    return long ? iso.slice(0, 7) : iso.slice(5, 10);
+  };
   return (
     <div className="h-64 w-full" role="img" aria-label={`${labels.price}, ${labels.band}`}>
       <ResponsiveContainer>
-        <ComposedChart data={data} margin={{ top: 8, right: 8, bottom: 0, left: -12 }}>
+        <ComposedChart data={points} margin={{ top: 8, right: 8, bottom: 0, left: -12 }}>
           <CartesianGrid stroke={grid} vertical={false} />
-          <XAxis dataKey="d" tick={axis} tickFormatter={fmt} minTickGap={28} stroke={grid} />
+          <XAxis
+            dataKey="t"
+            type="number"
+            scale="time"
+            domain={["dataMin", "dataMax"]}
+            tick={axis}
+            tickFormatter={fmt}
+            minTickGap={28}
+            stroke={grid}
+          />
           <YAxis tick={axis} domain={["auto", "auto"]} width={52} stroke={grid} tickFormatter={(v: number) => `₹${v}`} />
-          <Tooltip content={<TooltipBox />} cursor={{ stroke: "var(--color-ink-2)", strokeDasharray: "3 3" }} />
+          <Tooltip
+            content={<TooltipBox fmtLabel={(l) => new Date(Number(l)).toISOString().slice(0, 10)} />}
+            cursor={{ stroke: "var(--color-ink-2)", strokeDasharray: "3 3" }}
+          />
           <Area dataKey="band" name={labels.band} stroke="none" fill="var(--color-band)" fillOpacity={1} isAnimationActive={false} />
           <Line
             dataKey="price"
@@ -107,14 +124,17 @@ export interface SeasonPoint {
 export function SeasonChart({
   data,
   labels,
+  year,
 }: {
   data: SeasonPoint[];
   labels: { now: string; last: string; avg: string; week: string };
+  year: number;
 }) {
+  // Legend carries the full names; the direct end labels are short, language-neutral years.
   const series = [
-    { key: "now", name: labels.now, color: "var(--color-series-1)", dash: undefined },
-    { key: "last", name: labels.last, color: "var(--color-series-2)", dash: undefined },
-    { key: "avg", name: labels.avg, color: "var(--color-series-3)", dash: "6 4" },
+    { key: "now", name: labels.now, tag: `${year}`, color: "var(--color-series-1)", dash: undefined },
+    { key: "last", name: labels.last, tag: `${year - 1}`, color: "var(--color-series-2)", dash: undefined },
+    { key: "avg", name: labels.avg, tag: `${year - 5}–${String(year - 1).slice(2)}`, color: "var(--color-series-3)", dash: "6 4" },
   ] as const;
   const lastIndex = (k: (typeof series)[number]["key"]) => {
     for (let i = data.length - 1; i >= 0; i--) if (data[i]?.[k] != null) return i;
@@ -123,9 +143,9 @@ export function SeasonChart({
   return (
     <div className="h-72 w-full" role="img" aria-label={`${labels.now}, ${labels.last}, ${labels.avg}`}>
       <ResponsiveContainer>
-        <LineChart data={data} margin={{ top: 8, right: 64, bottom: 0, left: -12 }}>
+        <LineChart data={data} margin={{ top: 8, right: 52, bottom: 0, left: -12 }}>
           <CartesianGrid stroke={grid} vertical={false} />
-          <XAxis dataKey="w" tick={axis} stroke={grid} interval={7} tickFormatter={(w: number) => `${labels.week} ${w}`} />
+          <XAxis dataKey="w" tick={axis} stroke={grid} interval={7} />
           <YAxis tick={axis} width={52} stroke={grid} domain={["auto", "auto"]} tickFormatter={(v: number) => `₹${v}`} />
           <Tooltip
             content={<TooltipBox fmtLabel={(l) => `${labels.week} ${l}`} />}
@@ -152,11 +172,11 @@ export function SeasonChart({
                       x={Number(p.x) + 6}
                       y={Number(p.y)}
                       dominantBaseline="middle"
-                      fontSize={12}
+                      fontSize={11}
                       fontWeight={600}
                       fill="var(--color-ink-2)"
                     >
-                      {s.name}
+                      {s.tag}
                     </text>
                   ) : (
                     <g key={`${s.key}-${p.index}`} />

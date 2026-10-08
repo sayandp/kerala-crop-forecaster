@@ -195,7 +195,11 @@ export async function CropPage({ lang, crop, market }: { lang: Lang; crop: strin
           <SectionTitle id="high">{c.high}</SectionTitle>
           <p className="-mt-1 mb-3 text-[14px] text-ink-2">{fill(c.highLead, { market: mName })}</p>
           <DataCard>
-            <SeasonChart data={season} labels={{ now: c.thisYear, last: c.lastYear, avg: c.avg5, week: c.week }} />
+            <SeasonChart
+              data={season}
+              year={year}
+              labels={{ now: c.thisYear, last: c.lastYear, avg: c.avg5, week: c.week }}
+            />
             <details className="mt-3">
               <summary className="press inline-flex min-h-11 cursor-pointer items-center font-semibold text-accent">
                 {c.table}

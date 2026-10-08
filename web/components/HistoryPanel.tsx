@@ -25,6 +25,12 @@ export function HistoryPanel({
     const base =
       range === "5y" ? data.weekly : range === "1y" ? data.daily : data.daily.slice(Math.max(0, data.daily.length - 90));
     const out: PriceChartPoint[] = base.map((x) => ({ d: x.d, price: x.p }));
+    // The band opens at the last observed price and widens to each forecast horizon.
+    const last = data.daily[data.daily.length - 1];
+    if (last && data.band.length > 0) {
+      const anchor = out.find((p) => p.d === last.d);
+      if (anchor) anchor.band = [last.p, last.p];
+    }
     for (const b of data.band) out.push({ d: b.d, band: [b.lo, b.hi] });
     return out.sort((a, b) => a.d.localeCompare(b.d));
   }, [data, range]);
