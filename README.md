@@ -19,7 +19,10 @@ an API and a Telegram channel.
 **[Phase 2.5 report](reports/phase2_5_signal_hunt.md)** ·
 **[Pre-registration](reports/preregistration_e4a.md)**
 
-<img src="docs/dashboard.png" alt="Dashboard: latest Nendran banana price and the expected range in 7 days" width="380">
+<img src="docs/dashboard.webp" alt="Home screen in Malayalam: crop cards with today's price, 7-day change, sparkline and best market" width="320">
+<img src="docs/screens/desktop-dark-en-crop.webp" alt="Crop page in dark mode: today's price, 7-day range, percentile badge" width="560">
+
+More screenshots (mobile / desktop, Malayalam / English, light / dark): [`docs/screens/`](docs/screens/).
 
 ## Key findings
 
@@ -83,10 +86,36 @@ flowchart LR
 | | Where | Notes |
 |---|---|---|
 | API | Render free (Singapore), `docker/api.Dockerfile` | `/health /crops /markets /forecast /history /metrics /badge/*.json`. 10-min cache, 60 req/min/IP. Image 186 MB; `/health` answers 0.8 s after start at 512 MB. |
-| Dashboard | Vercel Hobby, `web/` | Next.js App Router, Malayalam at `/`, English at `/en`. ISR hourly, plus `POST /api/revalidate` after each daily run. Lighthouse mobile on `/`: performance 93–94, accessibility 100, SEO 100. |
+| Dashboard | Vercel Hobby, `web/` | Farmer-first PWA: "Is this a good price?" and "Where should I sell?". Malayalam at `/`, English at `/en`. ISR hourly + `POST /api/revalidate` after each daily run. Lighthouse mobile (median of 3, production build): home 96, crop page 95; accessibility 100; CLS 0. |
 | Telegram | one public channel | Daily post: latest ₹/kg and the 7-day p10–p90 per crop. Stale (> 3 days) and implausible markets are left out. |
 | Telegram bot | [@keralacropprices_bot](https://t.me/keralacropprices_bot), webhook on the Render API | Malayalam first. Prices on demand, price alerts on real prices, daily digests; see below. |
 | Drift | GitHub releases `reports-<date>` | Weekly Evidently HTML; summary in `drift_reports`. |
+
+## Dashboard
+
+[kerala-crop-forecaster.vercel.app](https://kerala-crop-forecaster.vercel.app) is an installable web app
+(PWA) built for farmers. It answers two questions: *is today's price a good one?* and *where should I sell?*
+
+- **Home:** one card per crop with today's ₹/kg at its lead market, ▲/▼ versus 7 days ago, a 90-day
+  sparkline, the price date and the best market today.
+- **Crop pages** (`/crop/banana`, `/crop/banana/Kayamkulam`):
+  - price history (90 days / 1 year / 5 years) with the 7-day forecast band
+  - "Is this price high?": this year, last year and the 5-year average by week, plus "higher than X% of
+    October prices since 2018"
+  - a sortable market table and a Kerala district map coloured by price
+  - "Set a price alert" (opens the Telegram bot on that market) and "Share on WhatsApp", with a price-card
+    image in Malayalam
+- **Navigation:** Home · Crops · Alerts · How it works. The accuracy, model, challenger, drift and health
+  pages sit under "How it works".
+- **Design:** an original style inspired by Apple's "Liquid Glass", with no Apple fonts, icons or assets.
+  - Blur only on the nav bar, the tab bar and an open sheet (at most 3 layers); data sits on near-opaque
+    surfaces.
+  - Solid fallbacks for reduced transparency, higher contrast and missing `backdrop-filter`; no motion for
+    reduced motion.
+  - Light and dark are designed separately.
+- **Tests:** Playwright and axe (WCAG 2.1 AA) on mobile and desktop, Malayalam and English, light and
+  dark: `cd web && npm run test:e2e`.
+- **Credits:** district boundaries © geoBoundaries (ODbL 1.0). Noto Sans Malayalam (SIL OFL 1.1).
 
 ## Telegram bot
 
