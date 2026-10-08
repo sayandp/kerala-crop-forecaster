@@ -84,6 +84,16 @@ jobs:
           echo "image size: ${mb} MB"
           echo "### API image: ${mb} MB" >> "$GITHUB_STEP_SUMMARY"
           test "$mb" -lt 400
+      # The bot is imported lazily on the first update: prove the image has its code + config.
+      - name: Bot loads inside the image (texts, aliases, series)
+        run: |
+          docker run --rm cropcast-api:ci python -c "
+          from cropcast.bot import handlers, names, render
+          assert len(names.served()) >= 20, 'series.yaml missing'
+          assert names.match_crop('കപ്പ') == 'tapioca', 'aliases.yaml missing'
+          assert render.t('ml', 'footer').startswith('ഉ'), 'bot texts missing'
+          print('bot ok:', len(names.served()), 'series')"
+
       - name: Load schema (so /health does a real DB round trip)
         run: PGPASSWORD=cropcast psql -v ON_ERROR_STOP=1 -h localhost -U cropcast -d cropcast -q -f sql/schema.sql
 
