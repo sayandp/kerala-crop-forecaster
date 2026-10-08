@@ -45,7 +45,7 @@ export function Sparkline({ data }: { data: PriceChartPoint[] }) {
       <polyline
         points={line}
         fill="none"
-        stroke="var(--color-ink)"
+        stroke="var(--color-series-1)"
         strokeWidth={2}
         vectorEffect="non-scaling-stroke"
       />

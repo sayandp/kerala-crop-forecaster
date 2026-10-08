@@ -1,5 +1,4 @@
 import { TrendChart } from "@/components/LazyCharts";
-import { Footer, Nav } from "@/components/Nav";
 import { Card, Empty, Page, Section, Table } from "@/components/ui";
 import { REPO } from "@/lib/format";
 import { dict } from "@/lib/i18n";
@@ -26,7 +25,6 @@ export default async function Accuracy({ params }: LangParams) {
 
   return (
     <>
-      <Nav lang={lang} path="/accuracy" />
       <Page title={t.title} intro={t.intro}>
         <Section title={t.mape}>
           {live7.length === 0 ? (
@@ -72,7 +70,6 @@ export default async function Accuracy({ params }: LangParams) {
           </a>
         </Card>
       </Page>
-      <Footer lang={lang} />
     </>
   );
 }

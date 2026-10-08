@@ -1,11 +1,13 @@
 import type { ReactNode } from "react";
+import { LargeTitle, SectionTitle } from "@/components/glass";
+
+// Shared page scaffolding (same API as Phase 4; restyled for the glass design system).
 
 export function Page({ title, intro, children }: { title: string; intro?: string; children: ReactNode }) {
   return (
-    <main id="main" className="mx-auto max-w-3xl px-4 py-6">
-      <h1 className="text-2xl leading-snug font-bold">{title}</h1>
-      {intro && <p className="mt-2 leading-relaxed text-muted">{intro}</p>}
-      <div className="mt-6 space-y-8">{children}</div>
+    <main id="main" className="mx-auto max-w-5xl px-4 pt-6">
+      <LargeTitle title={title} lead={intro} />
+      <div className="space-y-8">{children}</div>
     </main>
   );
 }
@@ -13,28 +15,29 @@ export function Page({ title, intro, children }: { title: string; intro?: string
 export function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
     <section>
-      <h2 className="mb-3 text-lg font-bold">{title}</h2>
+      <SectionTitle>{title}</SectionTitle>
       {children}
     </section>
   );
 }
 
+/** Data card: near-opaque so numbers keep full contrast. */
 export function Card({ children, className = "" }: { children: ReactNode; className?: string }) {
-  return <div className={`rounded-xl border border-line p-4 ${className}`}>{children}</div>;
+  return <div className={`surface-data p-4 ${className}`}>{children}</div>;
 }
 
 export function Empty({ text }: { text: string }) {
-  return <p className="rounded-xl border border-dashed border-line p-6 text-center text-muted">{text}</p>;
+  return <p className="surface-data p-6 text-center text-ink-2">{text}</p>;
 }
 
 export function Table({ head, rows }: { head: string[]; rows: ReactNode[][] }) {
   return (
-    <div className="overflow-x-auto rounded-xl border border-line">
-      <table className="w-full text-left text-sm">
-        <thead className="text-muted">
+    <div className="surface-data overflow-x-auto">
+      <table className="tabular w-full text-left text-[15px]">
+        <thead className="text-[13px] text-ink-2">
           <tr>
-            {head.map((h) => (
-              <th key={h} scope="col" className="border-b border-line px-3 py-2 font-medium">
+            {head.map((h, i) => (
+              <th key={`${h}-${i}`} scope="col" className="border-b border-line px-3 py-2.5 font-semibold">
                 {h}
               </th>
             ))}
@@ -44,7 +47,7 @@ export function Table({ head, rows }: { head: string[]; rows: ReactNode[][] }) {
           {rows.map((r, i) => (
             <tr key={i} className="border-b border-line last:border-0">
               {r.map((c, j) => (
-                <td key={j} className="px-3 py-2 align-top">
+                <td key={j} className="px-3 py-2.5 align-top">
                   {c}
                 </td>
               ))}

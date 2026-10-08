@@ -1,5 +1,4 @@
-import { Footer, Nav } from "@/components/Nav";
-import { cropName } from "@/components/SeriesDetail";
+import { cropName } from "@/lib/crops";
 import { Card, Page, Section, Table } from "@/components/ui";
 import { REPO } from "@/lib/format";
 import { dict } from "@/lib/i18n";
@@ -22,7 +21,6 @@ export default async function Challenger({ params }: LangParams) {
 
   return (
     <>
-      <Nav lang={lang} path="/challenger" />
       <Page title={t.title} intro={t.intro}>
         <Card>
           <h2 className="font-bold">{t.criteria}</h2>
@@ -48,7 +46,6 @@ export default async function Challenger({ params }: LangParams) {
           />
         </Section>
       </Page>
-      <Footer lang={lang} />
     </>
   );
 }

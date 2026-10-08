@@ -8,7 +8,7 @@ import { useEffect, useRef, useState, type ComponentProps, type ComponentType, t
 import { Sparkline } from "@/components/Sparkline";
 
 function Placeholder({ h }: { h: string }) {
-  return <div className={`${h} w-full animate-pulse rounded-xl bg-line/40`} />;
+  return <div className={`${h} w-full animate-pulse rounded-[18px] bg-line`} />;
 }
 
 /** Run `fn` once the page has loaded, a frame has been painted and the main thread is idle. */
@@ -79,10 +79,17 @@ const TrendChartLazy = dynamic(() => import("@/components/Charts").then((m) => m
   loading: () => <Placeholder h="h-56" />,
 });
 
+const SeasonChartLazy = dynamic(() => import("@/components/Charts").then((m) => m.SeasonChart), {
+  ssr: false,
+  loading: () => <Placeholder h="h-72" />,
+});
+
 type PriceProps = ComponentProps<typeof PriceChartLazy>;
+type SeasonProps = ComponentProps<typeof SeasonChartLazy>;
 type TrendProps = ComponentProps<typeof TrendChartLazy>;
 
 // The price chart is above the fold on the home page: its stand-in is a server-rendered SVG of the
 // same data (no layout shift, real content before any JS); the trend charts sit lower and pulse.
 export const PriceChart = whenVisible<PriceProps>(PriceChartLazy, (p) => <Sparkline data={p.data} />);
 export const TrendChart = whenVisible<TrendProps>(TrendChartLazy, () => <Placeholder h="h-56" />);
+export const SeasonChart = whenVisible<SeasonProps>(SeasonChartLazy, () => <Placeholder h="h-72" />);
