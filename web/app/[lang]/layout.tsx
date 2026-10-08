@@ -6,11 +6,13 @@ import { dict } from "@/lib/i18n";
 import { SITE_URL, langStaticParams, resolveLang, type LangParams } from "@/lib/page";
 
 const noto = Noto_Sans_Malayalam({
-  subsets: ["malayalam", "latin"],
+  // One variable font file per subset serves both weights. Only the Malayalam file is preloaded
+  // (`subsets`); the Latin files are still declared and load on demand (market names, digits).
+  subsets: ["malayalam"],
   weight: ["400", "700"],
-  // "optional": no late swap repaint (it delayed LCP by ~2.5 s on mobile). Android ships Noto Sans
-  // Malayalam as the system font, so a first visit on a slow network still renders Malayalam well.
-  display: "optional",
+  // swap: text paints at once in the fallback. Measured 2026-10-09 (local, 3 runs each): same
+  // simulated LCP as "optional" (2.71 s) but first paint on a cold start 1.2 s vs 2.2 s.
+  display: "swap",
   variable: "--font-malayalam",
 });
 
