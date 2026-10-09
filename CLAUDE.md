@@ -125,7 +125,22 @@ Never hardcode secrets. Never commit `.env`. Read env only via `cropcast.config.
 
 ## Modeling rules
 
-- Modelled series: `config/series.yaml` (20 series: the 19 from `notebooks/eda.ipynb` §9 + rubber Kalpetta RSS-4 stitched by alias; ask before changing).
+- Modelled series: `config/series.yaml` (ask before changing): the original 20 (19 from `notebooks/eda.ipynb` §9 +
+  rubber Kalpetta RSS-4) + **15 Phase 6b series** (approved 2026-10-09 from a coverage report: ≥ 2 yrs, < 20 %
+  missing Mon–Sat, alive): arecanut (Manjeswaram, Payyannur), coffee (Kalpetta), green ginger (Kayamkulam,
+  Manjeswaram), banana Palayankodan (Kayamkulam), Poovan (Palakkad), tomato / onion big / small onion / green chilli /
+  drumstick (Kayamkulam), small onion (Palakkad), bitter gourd (Manjeswaram), cucumber (Payyannur).
+- **Crop (product) keys:** one commodity can hold several products, so series carry an optional `crop:`
+  (`palayankodan`, `poovan` = banana varieties; `small_onion` = onion · Small; default = commodity). Dashboard
+  (`web/lib/crops.ts` CROP_DEFS), bot (`config/aliases.yaml` crops, same order) and channel (`config/channel.yaml`)
+  all use product keys; DB tables keep commodity / market / variety.
+- **Phase 6b crops are stored for their selected markets only** (`ingest/mappings.py::selected_markets`, all varieties
+  at those markets): +5 MB instead of +155 MB. The original five crops keep every Kerala market. Their 2018→ history
+  lives in GitHub Release `data-archive-2026-10-09-phase6b` (36,196 rows, verified; `scripts/backfill.py
+  --archive-history TAG`) and reaches `prices_clean` through `clean --full` like the main archive.
+- **Excluded (recheck quarterly):** banana Robusta (best series 21.7 % missing > 20 % rule: Thalayolaparambu,
+  Attingal); cardamom (40 %), dry ginger (35 %), turmeric / raw turmeric (> 75 %) are too sparse on Agmarknet —
+  cardamom needs the Spices Board e-auction source (future phase).
 - Training reads `prices_clean` **once** into `data/snapshots/prices_clean_<date>.parquet` (+ weather); features
   go to `data/features/*.parquet`. Never query the DB per fold; never store features in Postgres.
 - Target: `log1p(modal_price)` per (market, commodity, variety). Invert with `expm1` before scoring. LightGBM
@@ -161,6 +176,9 @@ Never hardcode secrets. Never commit `.env`. Read env only via `cropcast.config.
   **≥ 3 % relative MAPE AND DM p < 0.05** (APE loss, HAC lag h−1) on the 52-fold diagnostic.
   Every decision (refresh / promote / refuse / pass / fail / insufficient data) → MLflow
   (experiment `cropcast-registry`) **and** the `promotion_log` table.
+- **The pre-registered move classifier stays on its original 20 series** (`models/move.py::PREREG_SERIES`,
+  `move_series`, `move_rows`): new series never enter its training rows, shadow predictions or spec hash
+  (`18b80303494e1cc5`, pinned by a test). No move alerts / pre-registration for the Phase 6b crops.
 - **Move challenger:** never promoted from a backtest — only by the weekly `promotion_check`
   strictly per `reports/preregistration_e4a.md` (committed alone, before any shadow prediction;
   do not edit it). Pass → alias `champion_<crop>` + admin ping. Up/down alerts additionally need
@@ -351,8 +369,8 @@ Rules:
 ## Telegram rollout (staged)
 
 - **Stage 1 — Phase 3 (built):** **one** public channel (all crops in one post; per-crop channels later).
-  The `notify` step posts once per day after a successful run: per crop 1–3 markets
-  (`config/channel.yaml`) with the latest modal price (₹/kg = Agmarknet ₹/quintal ÷ 100; dated if not
+  The `notify` step posts once per day after a successful run: per crop ONE market (Phase 6b: 17 crops, kept
+  short; `config/channel.yaml`) with the latest modal price (₹/kg = Agmarknet ₹/quintal ÷ 100; dated if not
   today's) and the champion's p10–p90 for the price 7 days ahead; Malayalam line first, English second
   (`alerts/templates/{ml,en}.yaml`); footer: source, "range, not a guarantee", repo link. **No move
   alerts** until the classifier is promoted and the flag is on. Idempotent (`channel_posts`), skipped
