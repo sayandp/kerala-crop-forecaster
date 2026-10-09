@@ -1,5 +1,5 @@
 import { CropPage, cropPath } from "@/components/CropPage";
-import { cropName, isCrop, marketName } from "@/lib/crops";
+import { cropName, cropOf, isCrop, marketName } from "@/lib/crops";
 import { dict } from "@/lib/i18n";
 import { pageMetadata, resolveLang } from "@/lib/page";
 import { latestAll } from "@/lib/queries";
@@ -12,7 +12,10 @@ type Params = { params: Promise<{ lang: string; crop: string; market: string }> 
  * page's params do not propagate to child segments). Unknown pairs render on demand and 404. */
 export async function generateStaticParams(): Promise<{ crop: string; market: string }[]> {
   const rows = await latestAll();
-  return rows.map((r) => ({ crop: r.commodity, market: r.market }));
+  return rows.flatMap((r) => {
+    const crop = cropOf(r);
+    return crop ? [{ crop, market: r.market }] : [];
+  });
 }
 
 export async function generateMetadata({ params }: Params) {

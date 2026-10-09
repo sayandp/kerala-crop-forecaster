@@ -1,20 +1,67 @@
 import { dict, type Lang } from "@/lib/i18n";
 
-export const CROPS = ["banana", "coconut", "pepper", "rubber", "tapioca"] as const;
-export type Crop = (typeof CROPS)[number];
+/**
+ * Product keys shown to people. One commodity can hold several products (banana varieties,
+ * big vs small onion), so a crop = commodity + optional variety filter. Mirrors
+ * config/series.yaml (`crop:`) and config/aliases.yaml (`crops:`, same order).
+ * `ref` = the headline market (first market of config/channel.yaml).
+ */
+export type Group = "cash" | "banana" | "veg";
 
-export function isCrop(v: string): v is Crop {
-  return (CROPS as readonly string[]).includes(v);
+interface CropDef {
+  key: string;
+  commodity: string;
+  varieties?: readonly string[];
+  group: Group;
+  ref: string;
 }
 
-/** Headline market per crop (first market of config/channel.yaml: the channel's lead market). */
-export const REF_MARKET: Record<Crop, string> = {
-  banana: "Kayamkulam",
-  coconut: "Koduvayoor",
-  pepper: "Kannur",
-  rubber: "Kalpetta",
-  tapioca: "Payyannur",
-};
+export const CROP_DEFS = [
+  { key: "coconut", commodity: "coconut", group: "cash", ref: "Koduvayoor" },
+  { key: "pepper", commodity: "pepper", group: "cash", ref: "Kannur" },
+  { key: "rubber", commodity: "rubber", group: "cash", ref: "Kalpetta" },
+  { key: "arecanut", commodity: "arecanut", group: "cash", ref: "Manjeswaram" },
+  { key: "coffee", commodity: "coffee", group: "cash", ref: "Kalpetta" },
+  { key: "ginger", commodity: "ginger", group: "cash", ref: "Kayamkulam" },
+  { key: "banana", commodity: "banana", varieties: ["Nendran"], group: "banana", ref: "Kayamkulam" },
+  { key: "palayankodan", commodity: "banana", varieties: ["Palayamthodan"], group: "banana", ref: "Kayamkulam" },
+  { key: "poovan", commodity: "banana", varieties: ["Poovan"], group: "banana", ref: "Palakkad" },
+  { key: "tapioca", commodity: "tapioca", group: "veg", ref: "Payyannur" },
+  { key: "tomato", commodity: "tomato", group: "veg", ref: "Kayamkulam" },
+  { key: "onion", commodity: "onion", varieties: ["Big"], group: "veg", ref: "Kayamkulam" },
+  { key: "small_onion", commodity: "onion", varieties: ["Small"], group: "veg", ref: "Kayamkulam" },
+  { key: "green_chilli", commodity: "green_chilli", group: "veg", ref: "Kayamkulam" },
+  { key: "bitter_gourd", commodity: "bitter_gourd", group: "veg", ref: "Manjeswaram" },
+  { key: "drumstick", commodity: "drumstick", group: "veg", ref: "Kayamkulam" },
+  { key: "cucumber", commodity: "cucumber", group: "veg", ref: "Payyannur" },
+] as const satisfies readonly CropDef[];
+
+export type Crop = (typeof CROP_DEFS)[number]["key"];
+export const CROPS: readonly Crop[] = CROP_DEFS.map((d) => d.key);
+export const GROUPS: readonly Group[] = ["cash", "banana", "veg"];
+
+const BY_KEY = new Map<string, CropDef>(CROP_DEFS.map((d) => [d.key, d]));
+
+export function isCrop(v: string): v is Crop {
+  return BY_KEY.has(v);
+}
+
+export function cropDef(crop: Crop): CropDef {
+  return BY_KEY.get(crop) as CropDef;
+}
+
+/** Product key of a stored series (commodity + variety), or null if it is not served. */
+export function cropOf(row: { commodity: string; variety: string }): Crop | null {
+  for (const d of CROP_DEFS as readonly CropDef[]) {
+    if (d.commodity !== row.commodity) continue;
+    if (!d.varieties || d.varieties.includes(row.variety)) return d.key as Crop;
+  }
+  return null;
+}
+
+export function refMarket(crop: Crop): string {
+  return cropDef(crop).ref;
+}
 
 /** Malayalam market names (config/aliases.yaml: first Malayalam name). */
 const ML_MARKET: Record<string, string> = {

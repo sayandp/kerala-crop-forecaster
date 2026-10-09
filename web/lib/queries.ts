@@ -312,6 +312,8 @@ export async function latestAll(): Promise<LatestRow[]> {
 
 export interface SparkRow {
   commodity: string;
+  market: string;
+  variety: string;
   d: string;
   p: number;
 }
@@ -323,7 +325,8 @@ export async function sparklines(series: SeriesKey[]): Promise<SparkRow[]> {
   const m = series.map((s) => s.market);
   const v = series.map((s) => s.variety);
   return rows<SparkRow>(
-    (q) => q`SELECT s.c AS commodity, to_char(p.date, 'YYYY-MM-DD') AS d,
+    (q) => q`SELECT s.c AS commodity, s.m AS market, s.v AS variety,
+                    to_char(p.date, 'YYYY-MM-DD') AS d,
                     p.modal_price::float8 AS p
              FROM unnest(${c}::text[], ${m}::text[], ${v}::text[]) AS s(c, m, v)
              JOIN LATERAL (
@@ -332,7 +335,7 @@ export async function sparklines(series: SeriesKey[]): Promise<SparkRow[]> {
                  AND x.date > (SELECT max(date) FROM prices_clean y
                                WHERE y.commodity = s.c AND y.market = s.m
                                  AND y.variety = s.v) - 90) p ON TRUE
-             ORDER BY 1, 2`,
+             ORDER BY 1, 2, 3, 4`,
   );
 }
 

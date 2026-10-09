@@ -33,7 +33,8 @@ for (const L of LANGS) {
     await page.goto(`${L.prefix}/`);
     await expect(page.locator("html")).toHaveAttribute("lang", L.lang);
     await expect(page.getByRole("heading", { level: 1, name: L.homeTitle })).toBeVisible();
-    await expect(page.locator("main ul > li a[href*='/crop/']")).toHaveCount(5);
+    await expect(page.locator("main ul > li a[href*='/crop/']")).toHaveCount(17); // 3 groups
+    await expect(page.locator("main h2[id^='group-']")).toHaveCount(3);
     await page.screenshot({ path: `${SHOTS}/${info.project.name}-${L.lang}-home.png` });
     await settle(page);
     await axe(page);
@@ -50,6 +51,17 @@ for (const L of LANGS) {
     // market sheet opens and lists markets
     await page.getByRole("button", { name: L.lang === "ml" ? "വിപണി മാറ്റുക" : "Change market" }).click();
     await expect(page.locator("dialog[open] a").first()).toBeVisible();
+    await axe(page);
+  });
+}
+
+for (const L of LANGS) {
+  test(`new crop page ${L.lang} (small onion)`, async ({ page }, info) => {
+    await page.goto(`${L.prefix}/crop/small_onion`);
+    await expect(page.getByRole("heading", { level: 1, name: L.lang === "ml" ? "ചെറിയ ഉള്ളി" : "Small onion" })).toBeVisible();
+    await expect(page.locator("a[href*='t.me/keralacropprices_bot?start=alert_small_onion_']")).toHaveCount(1);
+    await page.screenshot({ path: `${SHOTS}/${info.project.name}-${L.lang}-small-onion.png` });
+    await settle(page);
     await axe(page);
   });
 }
