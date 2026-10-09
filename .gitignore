@@ -21,3 +21,9 @@ data/snapshots/
 data/features/
 data/archive/
 data/upstream/
+
+# Demo video project (Remotion; never deployed)
+video/node_modules/
+video/out/
+video/capture/
+video/*.log
