@@ -80,7 +80,7 @@ def price_list(lang: str, crop: str, rows: list[PriceRow], today: date) -> str:
 
 
 def price_detail(lang: str, r: PriceRow, today: date) -> str:
-    crop = crop_name(r.series.commodity, lang)
+    crop = crop_name(r.series.key, lang)
     market = market_name(r.series.market, lang)
     if r.price is None or r.date is None:
         return t(lang, "no_price", crop=crop, market=market)

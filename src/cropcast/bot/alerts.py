@@ -22,7 +22,7 @@ from sqlalchemy import Engine, text
 
 from cropcast.bot import render, telegram
 from cropcast.bot.moves import move_alerts_allowed, move_flags
-from cropcast.bot.names import crop_name, market_name
+from cropcast.bot.names import crop_name, crop_of, market_name
 from cropcast.bot.render import kg, t
 from cropcast.bot.store import Store
 from cropcast.config import settings
@@ -117,7 +117,7 @@ class Delivery:
                         t(
                             r.lang,
                             f"alert_fired_{r.direction}",
-                            crop=crop_name(r.commodity, r.lang),
+                            crop=crop_name(crop_of(r.commodity, r.market, r.variety), r.lang),
                             market=market_name(r.market, r.lang),
                             price=kg(r.obs_price),
                             date=render.day(r.obs_date, r.lang),

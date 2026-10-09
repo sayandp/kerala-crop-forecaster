@@ -89,6 +89,7 @@ class Store:
         series = markets_of(crop)
         if not series:
             return []
+        commodity = series[0].commodity  # one commodity per product key
         rows = self._all(
             self.ro,
             """SELECT s.m AS market, s.v AS variety, p.date, p.modal_price::float8 AS price,
@@ -102,7 +103,7 @@ class Store:
                    SELECT target_date, p10, p90 FROM forecasts
                    WHERE commodity = :c AND market = s.m AND variety = s.v AND horizon = 7
                    ORDER BY forecast_date DESC LIMIT 1) f ON TRUE""",
-            c=crop,
+            c=commodity,
             markets=[s.market for s in series],
             varieties=[s.variety for s in series],
         )

@@ -20,7 +20,6 @@ from cropcast.config import settings
 
 ALIASES_PATH = settings.config_dir / "aliases.yaml"
 SERIES_PATH = settings.config_dir / "series.yaml"
-CROPS = ("banana", "coconut", "pepper", "rubber", "tapioca")
 FUZZY_CUTOFF = 0.85  # lower let "kannur" match "mookannur"; real typos score > 0.9
 
 # Old-style chillu encodings (consonant + virama + ZWJ) -> atomic chillu letters.
@@ -47,6 +46,11 @@ class Served:
     commodity: str
     market: str
     variety: str
+    crop: str = ""  # product key (config/series.yaml `crop:`), e.g. small_onion
+
+    @property
+    def key(self) -> str:
+        return self.crop or self.commodity
 
 
 @lru_cache(maxsize=1)
@@ -59,20 +63,38 @@ def aliases(path: Path = ALIASES_PATH) -> dict[str, Any]:
 def served(path: Path = SERIES_PATH) -> tuple[Served, ...]:
     data = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
     return tuple(
-        Served(str(s["commodity"]), str(s["market"]), str(s["variety"])) for s in data["series"]
+        Served(
+            str(s["commodity"]),
+            str(s["market"]),
+            str(s["variety"]),
+            str(s.get("crop") or s["commodity"]),
+        )
+        for s in data["series"]
     )
+
+
+# Product keys in button / display order (config/aliases.yaml `crops:`).
+CROPS: tuple[str, ...] = tuple(str(k) for k in aliases()["crops"])
 
 
 def markets_of(crop: str) -> list[Served]:
     """Served series of a crop, sorted by market (the index is used in inline keyboards)."""
-    return sorted((s for s in served() if s.commodity == crop), key=lambda s: s.market)
+    return sorted((s for s in served() if s.key == crop), key=lambda s: s.market)
+
+
+def crop_of(commodity: str, market: str, variety: str) -> str:
+    """Product key of a stored series (alerts store commodity / market / variety)."""
+    for s in served():
+        if (s.commodity, s.market, s.variety) == (commodity, market, variety):
+            return s.key
+    return commodity
 
 
 def crop_name(crop: str, lang: str) -> str:
     entry = aliases()["crops"].get(crop, {})
-    names = entry.get(lang) or []
     if lang == "en":
-        return {"banana": "Nendran banana", "pepper": "Black pepper"}.get(crop, crop.capitalize())
+        return str(entry.get("name_en") or crop.replace("_", " ").capitalize())
+    names = entry.get("ml") or []
     return str(names[0]) if names else crop
 
 
@@ -93,7 +115,7 @@ def _table(kind: str, keys: list[str] | None = None) -> dict[str, str]:
         names = (
             [key, *entry]
             if isinstance(entry, list)
-            else [key, *(n for ns in entry.values() for n in ns)]
+            else [key, *(n for ns in entry.values() if isinstance(ns, list) for n in ns)]
         )
         for name in names:
             out.setdefault(norm(str(name)), str(key))
@@ -147,15 +169,20 @@ def market_slug(market: str) -> str:
 
 
 def parse_start_payload(payload: str) -> tuple[str, str | None, Served | None] | None:
-    """`/start alert_<crop>[_<market-slug>]` or `price_<crop>` (website buttons) -> parts."""
-    parts = payload.split("_", 2)
-    if len(parts) < 2 or parts[0] not in ("alert", "price") or parts[1] not in CROPS:
+    """`/start alert_<crop>[_<market-slug>]` or `price_<crop>` (website buttons) -> parts.
+
+    Crop keys may contain underscores (small_onion), so the longest matching key wins."""
+    kind, _, rest = payload.partition("_")
+    if kind not in ("alert", "price") or not rest:
         return None
-    crop = parts[1]
+    crop = max((k for k in CROPS if rest == k or rest.startswith(k + "_")), key=len, default=None)
+    if crop is None:
+        return None
+    slug = rest[len(crop) + 1 :]
     market = None
-    if len(parts) == 3:
-        market = next((s for s in markets_of(crop) if market_slug(s.market) == parts[2]), None)
-    return parts[0], crop, market
+    if slug:
+        market = next((s for s in markets_of(crop) if market_slug(s.market) == slug), None)
+    return kind, crop, market
 
 
 _NUMBER = re.compile(r"(\d+(?:[.,]\d+)?)")
