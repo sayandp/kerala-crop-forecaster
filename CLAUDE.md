@@ -315,6 +315,12 @@ Built (Phase 4, `api/main.py`; reads tables only — never loads MLflow models):
   add a phrase by re-running the generator, never by typing Malayalam into `ImageResponse`.
 - **Map:** `lib/kerala-map.ts`, generated once from geoBoundaries IND ADM2 (ODbL 1.0, attribution under the
   map); market → district from `prices_raw`.
+- **Env (Vercel, Production + Preview) is exactly:** `DATABASE_URL_RO`, `REVALIDATE_SECRET`,
+  `NEXT_PUBLIC_TELEGRAM_CHANNEL_URL`. Never add pipeline / bot / MLflow secrets to Vercel. Platform-provided:
+  `VERCEL_PROJECT_PRODUCTION_URL`, `NODE_ENV`. Test-only: `BASE_URL`, `PW_CHANNEL`, `SHOTS_DIR`,
+  `VERCEL_AUTOMATION_BYPASS_SECRET` (local `.env`; Playwright / Lighthouse send it as
+  `x-vercel-protection-bypass` to reach protected previews). Preview Lighthouse runs block the Vercel
+  toolbar (`--blocked-url-patterns=*vercel.live*`): it is injected on previews only.
 - **PWA:** `app/manifest.ts`, `public/icons/*`, `public/sw.js` (network-first pages with cache fallback, then
   `/offline`; cache-first hashed static assets), install prompt (Android) / hint (iOS).
 

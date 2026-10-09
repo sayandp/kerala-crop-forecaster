@@ -117,6 +117,18 @@ flowchart LR
   dark: `cd web && npm run test:e2e`.
 - **Credits:** district boundaries © geoBoundaries (ODbL 1.0). Noto Sans Malayalam (SIL OFL 1.1).
 
+**Vercel environment** (Production + Preview), nothing else:
+
+| Variable | Kind | Used by |
+|---|---|---|
+| `DATABASE_URL_RO` | secret | server-side queries (`web/lib/db.ts`), read-only role `cropcast_ro` |
+| `REVALIDATE_SECRET` | secret | `POST /api/revalidate` (`x-revalidate-secret` header) |
+| `NEXT_PUBLIC_TELEGRAM_CHANNEL_URL` | config | channel links (`https://t.me/keralavipanivila`) |
+
+Set by the platform, not configured: `VERCEL_PROJECT_PRODUCTION_URL` (canonical / OG URLs) and `NODE_ENV`.
+Test-only (local shell / `.env`, never on Vercel): `BASE_URL`, `PW_CHANNEL`, `SHOTS_DIR`, and
+`VERCEL_AUTOMATION_BYPASS_SECRET` (sent as `x-vercel-protection-bypass` to reach protected previews).
+
 ## Telegram bot
 
 Talk to [@keralacropprices_bot](https://t.me/keralacropprices_bot). It answers in Malayalam by
