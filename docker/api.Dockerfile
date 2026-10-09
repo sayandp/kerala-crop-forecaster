@@ -1,6 +1,6 @@
 # cropcast API image (Render free: 512 MB RAM). Only the `api` dependency group is installed:
 # the API reads tables and never loads models (no pandas / MLflow / LightGBM).
-FROM python:3.11-slim AS build
+FROM public.ecr.aws/docker/library/python:3.11-slim AS build
 COPY --from=ghcr.io/astral-sh/uv:0.12.17 /uv /usr/local/bin/uv
 ENV UV_COMPILE_BYTECODE=1 UV_LINK_MODE=copy UV_PYTHON_DOWNLOADS=never
 WORKDIR /app
@@ -11,7 +11,7 @@ RUN uv venv /opt/venv \
 COPY src ./src
 RUN VIRTUAL_ENV=/opt/venv uv pip install --no-cache --no-deps .
 
-FROM python:3.11-slim
+FROM public.ecr.aws/docker/library/python:3.11-slim
 ENV PATH=/opt/venv/bin:$PATH PYTHONUNBUFFERED=1 ENV=prod CONFIG_DIR=/app/config
 COPY --from=build /opt/venv /opt/venv
 # Bot (Phase 5): crop/market aliases, served series, move-alert flags.
