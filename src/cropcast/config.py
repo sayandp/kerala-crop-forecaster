@@ -170,6 +170,10 @@ class Settings(BaseSettings):
     dashboard_url: str = "https://kerala-crop-forecaster.vercel.app"
     telegram_channel_url: str = "https://t.me/keralavipanivila"
     bot_rate_limit_per_min: int = 20  # commands per chat per minute
+    # External morning trigger (scripts/trigger_daily.py, docs/external-trigger.md): fine-grained
+    # PAT limited to this repo, Actions read/write only. Never needed by the pipeline itself.
+    github_dispatch_token: SecretStr | None = None
+    github_repo: str = "sayandp/kerala-crop-forecaster"
     bot_max_alerts: int = 5  # active price alerts per chat
     telegram_send_per_s: float = 25.0  # broadcast pace (Telegram allows ~30 msg/s)
 

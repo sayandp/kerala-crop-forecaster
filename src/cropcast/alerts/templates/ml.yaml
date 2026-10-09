@@ -18,6 +18,6 @@ crops:
   bitter_gourd: "പാവയ്ക്ക"
   drumstick: "മുരിങ്ങക്കായ"
   cucumber: "വെള്ളരി"
-line: "{market}: ഇന്ന് ₹{price}/കിലോ · 7 ദിവസത്തിനു ശേഷം പ്രതീക്ഷിക്കാവുന്ന വില ₹{lo}–{hi}"
+line: "{market}: ₹{price}/കിലോ · 7 ദിവസത്തിനു ശേഷം പ്രതീക്ഷിക്കാവുന്ന വില ₹{lo}–{hi}"  # price of the header date
 line_stale: "{market}: ₹{price}/കിലോ ({obs_date}) · 7 ദിവസത്തിനു ശേഷം പ്രതീക്ഷിക്കാവുന്ന വില ₹{lo}–{hi}"  # latest price is not from today
 footer: "ഉറവിടം: Agmarknet മോഡൽ വില (₹/ക്വിന്റൽ ÷ 100). ഇത് ഒരു പ്രതീക്ഷിത പരിധി മാത്രമാണ്, ഉറപ്പല്ല."

@@ -205,6 +205,22 @@ def database_size_mb(engine: Engine | None = None) -> float:
 # --- pipeline_runs ----------------------------------------------------------
 
 
+def daily_run_done(run_date: date, engine: Engine | None = None) -> bool:
+    """A successful, non-dry daily run (one that included `notify`) already exists for this
+    IST date. Used by scheduled triggers (--once-per-day): the external cron and GitHub's
+    fallback cron may both fire; the second must write and post nothing."""
+    engine = engine or get_engine()
+    with engine.connect() as conn:
+        hit = conn.execute(
+            text(
+                "SELECT 1 FROM pipeline_runs WHERE run_date = :d AND status = 'success' "
+                "AND NOT dry_run AND (',' || steps || ',') LIKE '%,notify,%' LIMIT 1"
+            ),
+            {"d": run_date},
+        ).first()
+    return hit is not None
+
+
 def start_run(
     run_date: date,
     steps: Sequence[str],

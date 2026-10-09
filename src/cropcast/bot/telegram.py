@@ -12,6 +12,7 @@ import hashlib
 import logging
 import time
 from collections.abc import Callable
+from datetime import UTC, datetime, timedelta, timezone
 from typing import Any
 
 import httpx
@@ -39,6 +40,16 @@ def webhook_path_token() -> str | None:
     if secret is None:
         return None
     return hashlib.sha256(secret.get_secret_value().encode()).hexdigest()[:32]
+
+
+IST = timezone(timedelta(hours=5, minutes=30))
+QUIET_FROM_HOUR, QUIET_TO_HOUR = 21, 6  # IST
+
+
+def quiet_hours(now: datetime | None = None) -> bool:
+    """21:00-06:00 IST: broadcasts (channel post, digests, alerts) are sent silently."""
+    hour = (now or datetime.now(UTC)).astimezone(IST).hour
+    return hour >= QUIET_FROM_HOUR or hour < QUIET_TO_HOUR
 
 
 def configured() -> bool:
@@ -79,13 +90,18 @@ def call(
 
 
 def send_message(
-    chat_id: int | str, text: str, keyboard: list[list[dict[str, str]]] | None = None
+    chat_id: int | str,
+    text: str,
+    keyboard: list[list[dict[str, str]]] | None = None,
+    silent: bool = False,
 ) -> dict[str, Any]:
     payload: dict[str, Any] = {
         "chat_id": chat_id,
         "text": text[:MAX_LEN],
         "disable_web_page_preview": True,
     }
+    if silent:
+        payload["disable_notification"] = True
     if keyboard:
         payload["reply_markup"] = {"inline_keyboard": keyboard}
     return call("sendMessage", payload)

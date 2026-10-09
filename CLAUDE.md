@@ -8,7 +8,7 @@ Self-retraining MLOps system that forecasts daily mandi (modal) prices for Keral
 
 ## Architecture (one-line summary)
 
-GitHub Actions cron (daily 19:47 IST) → ingest → validate → features → train challenger → backtest vs baselines → promotion gate (MLflow registry) → batch predict with `@champion` → Postgres → served read-only by FastAPI (Render) / Next.js dashboard (Vercel, ISR) / Telegram. Evidently monitors drift (weekly); live MAPE is computed as actuals arrive.
+Daily morning run (05:00 IST, external cron-job.org trigger; GitHub cron fallback) → ingest → validate → features → train challenger → backtest vs baselines → promotion gate (MLflow registry) → batch predict with `@champion` → Postgres → served read-only by FastAPI (Render) / Next.js dashboard (Vercel, ISR) / Telegram. Evidently monitors drift (weekly); live MAPE is computed as actuals arrive.
 
 **Serving is batch, not real-time.** Forecasts are precomputed nightly and read from Postgres. Do not add online inference.
 
@@ -316,7 +316,14 @@ Built (Phase 4, `api/main.py`; reads tables only — never loads MLflow models):
 ## CI/CD
 
 - `ci.yml` (PR + main): ruff, mypy, pytest; docker build + size/cold-start check; `web` job (node LTS, pnpm: lint, typecheck, build — no DB, pages build empty and fill via ISR).
-- `daily_pipeline.yml`: cron `17 14 * * *` (UTC = 19:47 IST; off the hour because GitHub delays on-the-hour crons) + `workflow_dispatch`; uploads `reports/` artifact. Steps: `ingest,validate,weather,clean,predict,user_alerts,shadow,evaluate,notify,revalidate`; scheduled Sundays add `retrain` (after clean), `promotion_check,drift` (after evaluate) and `weekly_summary` (last); the 1st adds `archive`. Full git history (`fetch-depth: 0`) — the shadow step verifies the pre-registration commit.
+- `daily_pipeline.yml` (**morning, 2026-10-09**): primary trigger = cron-job.org at 05:00 IST calling
+  `workflow_dispatch` with `mode=scheduled` (`docs/external-trigger.md`, fine-grained PAT: this repo, Actions
+  read/write only); fallback GitHub cron `37 23 * * *` (05:07 IST; it often starts hours late). Scheduled runs
+  pass `--once-per-day`: a second trigger the same IST day finds a successful daily run and writes / posts
+  nothing (`db.daily_run_done`); runs are queued (`concurrency`). Weekly extras on Sunday IST, archive on the
+  1st IST (calendar via `TZ=Asia/Kolkata`). The run uses the previous day's complete prices (as-of dating).
+  Telegram broadcasts (channel, digests, alerts) are silent 21:00–06:00 IST (`telegram.quiet_hours`).
+  Manual `workflow_dispatch` (mode=manual) always runs; uploads `reports/` artifact. Steps: `ingest,validate,weather,clean,predict,user_alerts,shadow,evaluate,notify,revalidate`; scheduled Sundays add `retrain` (after clean), `promotion_check,drift` (after evaluate) and `weekly_summary` (last); the 1st adds `archive`. Full git history (`fetch-depth: 0`) — the shadow step verifies the pre-registration commit.
 - `deploy.yml`: after `ci` succeeds on main → POST `RENDER_DEPLOY_HOOK` (Render builds the image). The dashboard deploys via the Vercel GitHub integration (root `web/`).
 
 ## Don'ts

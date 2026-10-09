@@ -754,6 +754,11 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     )
     p.add_argument("--tune", action="store_true", help="train: Optuna search (h=7, folds 1-3)")
     p.add_argument(
+        "--once-per-day",
+        action="store_true",
+        help="scheduled triggers: do nothing if a successful daily run exists for this IST date",
+    )
+    p.add_argument(
         "--status-file",
         type=Path,
         default=None,
@@ -792,6 +797,27 @@ def main(argv: list[str] | None = None) -> int:
         settings.logs_dir / f"pipeline_{run_date.isoformat()}_{datetime.now(IST):%H%M%S}.jsonl"
     )
     setup_logging(log_file=None if args.dry_run else log_file)
+    if args.once_per_day and not args.dry_run and db.daily_run_done(run_date):
+        log.info(
+            "daily run already done for this date: nothing to do", extra={"run_date": str(run_date)}
+        )
+        if args.status_file is not None:
+            args.status_file.parent.mkdir(parents=True, exist_ok=True)
+            args.status_file.write_text(
+                json.dumps(
+                    {
+                        "run_date": run_date.isoformat(),
+                        "finished_at": datetime.now(IST).isoformat(timespec="seconds"),
+                        "status": "skipped",
+                        "reason": "a successful daily run already exists for this IST date",
+                        "git_sha": git_sha(),
+                    },
+                    indent=2,
+                )
+                + "\n",
+                encoding="utf-8",
+            )
+        return 0
     ctx = RunContext(
         run_date=run_date,
         dry_run=args.dry_run,
