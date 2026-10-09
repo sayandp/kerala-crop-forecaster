@@ -123,9 +123,9 @@ export const Captions: React.FC<{ caps: Cap[]; layout: "vertical" | "horizontal"
     <AbsoluteFill style={{ justifyContent: "flex-end", alignItems: "center", pointerEvents: "none" }}>
       <div
         style={{
-          marginBottom: v ? 70 : 34,
-          maxWidth: v ? 980 : 1500,
-          padding: v ? "26px 40px" : "16px 34px",
+          marginBottom: v ? 60 : 26,
+          maxWidth: v ? 1000 : 1760,
+          padding: v ? "24px 40px" : "14px 38px",
           borderRadius: v ? 40 : 30,
           background: "rgba(16,32,22,0.80)",
           color: "#fff",
@@ -136,12 +136,12 @@ export const Captions: React.FC<{ caps: Cap[]; layout: "vertical" | "horizontal"
         }}
       >
         {cur.ml && v ? (
-          <div style={{ fontFamily: FONT, fontSize: 46, fontWeight: 700, lineHeight: 1.45 }}>{cur.ml}</div>
+          <div style={{ fontFamily: FONT, fontSize: 56, fontWeight: 700, lineHeight: 1.4 }}>{cur.ml}</div>
         ) : null}
         <div
           style={{
             fontFamily: FONT_EN,
-            fontSize: v ? (cur.ml ? 32 : 44) : 40,
+            fontSize: v ? (cur.ml ? 36 : 52) : 56,
             fontWeight: v && cur.ml ? 500 : 650,
             opacity: v && cur.ml ? 0.82 : 1,
             marginTop: v && cur.ml ? 8 : 0,

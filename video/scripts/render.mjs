@@ -4,6 +4,7 @@
 // Needs the captured footage (npm run capture:web, npm run capture:bot) in capture/.
 import { bundle } from "@remotion/bundler";
 import { renderMedia, renderStill, selectComposition } from "@remotion/renderer";
+import { spawnSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 
@@ -11,6 +12,12 @@ const ROOT = path.resolve(".");
 const CAPTURE = path.join(ROOT, "capture");
 const OUT = path.join(ROOT, "out");
 const MAX_MB = 50; // WhatsApp limit
+// Remotion's bundled ffmpeg (falls back to one on PATH)
+const FFMPEG =
+  fs.readdirSync(path.join(ROOT, "node_modules/@remotion"))
+    .filter((d) => d.startsWith("compositor-"))
+    .map((d) => path.join(ROOT, "node_modules/@remotion", d, process.platform === "win32" ? "ffmpeg.exe" : "ffmpeg"))
+    .find((f) => fs.existsSync(f)) ?? "ffmpeg";
 
 // fonts (OFL) live in assets/, the public dir is capture/
 fs.mkdirSync(path.join(CAPTURE, "fonts"), { recursive: true });
@@ -31,6 +38,7 @@ const browserExecutable = fs.existsSync(chrome) ? chrome : null;
 
 console.log("bundling…");
 const serveUrl = await bundle({ entryPoint: path.join(ROOT, "src/index.ts"), publicDir: CAPTURE });
+fs.rmSync(path.join(OUT, "frames"), { recursive: true, force: true });
 fs.mkdirSync(path.join(OUT, "frames"), { recursive: true });
 
 const report = [];
@@ -40,23 +48,35 @@ for (const [id, name] of [
 ]) {
   const comp = await selectComposition({ serveUrl, id, browserExecutable });
   const file = path.join(OUT, `${name}.mp4`);
+  const raw = path.join(OUT, `${name}.raw.mp4`);
   let last = -1;
   await renderMedia({
     serveUrl,
     composition: comp,
     codec: "h264",
-    crf: 23,
+    crf: 16, // high-quality intermediate; final encode below
     pixelFormat: "yuv420p",
+    muted: true, // the videos are silent
     imageFormat: "jpeg",
     jpegQuality: 92,
     concurrency: 4,
-    outputLocation: file,
+    outputLocation: raw,
     browserExecutable,
     onProgress: ({ progress }) => {
       const p = Math.floor(progress * 10);
       if (p !== last) console.log(`${id}: ${p * 10}%`), (last = p);
     },
   });
+  // JPEG frames make x264 tag the stream full-range (yuvj420p); re-encode to limited-range
+  // yuv420p (what phones and WhatsApp expect) with the index up front for streaming.
+  const ff = spawnSync(
+    FFMPEG,
+    ["-y", "-v", "error", "-i", raw, "-c:v", "libx264", "-preset", "slow", "-crf", "21",
+      "-pix_fmt", "yuv420p", "-vf", "scale=in_range=pc:out_range=tv", "-color_range", "tv", "-movflags", "+faststart", "-an", file],
+    { stdio: "inherit" },
+  );
+  if (ff.status !== 0) throw new Error(`ffmpeg failed for ${name}`);
+  fs.rmSync(raw);
   const mb = fs.statSync(file).size / 1e6;
 
   // one grab per section (60% into it), sections exported by the composition's props

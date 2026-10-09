@@ -164,7 +164,7 @@ const EDGES: [string, string, number][] = [
   ["neon", "tg", 112],
 ];
 
-export const Pipeline: React.FC = () => {
+export const Pipeline: React.FC<{ title?: boolean }> = ({ title = true }) => {
   const f = useCurrentFrame();
   const by = Object.fromEntries(NODES.map((n) => [n.id, n]));
   const path = (a: Node, b: Node, back: boolean) => {
@@ -179,11 +179,13 @@ export const Pipeline: React.FC = () => {
   };
   return (
     <AbsoluteFill>
-      <div style={{ position: "absolute", top: 40, width: "100%", textAlign: "center" }}>
-        <Pop>
-          <Title en="How it works" size={60} />
-        </Pop>
-      </div>
+      {title ? (
+        <div style={{ position: "absolute", top: 40, width: "100%", textAlign: "center" }}>
+          <Pop>
+            <Title en="How it works" size={60} />
+          </Pop>
+        </div>
+      ) : null}
       <svg width={1920} height={1080} style={{ position: "absolute", top: 60, left: 0 }}>
         <defs>
           <marker id="arr" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
@@ -381,9 +383,9 @@ export const Cta: React.FC<L> = ({ v }) => {
       <div style={{ display: "flex", flexDirection: v ? "column" : "row", gap: v ? 24 : 28 }}>
         {LINKS.map((l, i) => (
           <Pop key={l.url} delay={12 + i * 7}>
-            <Glass style={{ padding: v ? "26px 40px" : "26px 34px", width: v ? 880 : 540 }}>
+            <Glass style={{ padding: v ? "26px 40px" : "26px 34px", width: v ? 880 : undefined }}>
               <div style={{ fontFamily: v ? FONT : FONT_EN, fontSize: v ? 32 : 26, color: C.inkSoft, fontWeight: 600 }}>{v ? l.ml : l.en}</div>
-              <div style={{ fontFamily: FONT_EN, fontSize: v ? 42 : 33, color: C.accent, fontWeight: 800, marginTop: 6 }}>{l.url}</div>
+              <div style={{ fontFamily: FONT_EN, fontSize: v ? 42 : 34, color: C.accent, fontWeight: 800, marginTop: 6, whiteSpace: "nowrap" }}>{l.url}</div>
             </Glass>
           </Pop>
         ))}
