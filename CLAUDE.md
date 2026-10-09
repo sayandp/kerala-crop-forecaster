@@ -385,7 +385,8 @@ Rules:
 - [ ] 5. Telegram bot (Stage 2): built 2026-10-09 (webhook, commands ml/en, crossing alerts, digests, roles,
       metrics, tests); tick once it answers on Render and a daily run has fired a real alert
 - [ ] 6. CI/CD polish, README (diagram, live MAPE badge), user acquisition
-  - [ ] 6a. Frontend upgrade (farmer-first, Liquid-Glass-inspired, PWA): built on branch
-        `feat/frontend-liquid-glass`; merge after the Lighthouse check on the Vercel preview
+  - [x] 6a. Frontend upgrade (farmer-first, Liquid-Glass-inspired, PWA), PR #3, live 2026-10-09.
+        Production Lighthouse mobile (median of 3): home 95, crop pages 91 / 93; a11y 100; CLS 0;
+        Playwright + axe 20/20 on production
 
 Update this checklist as phases complete.
