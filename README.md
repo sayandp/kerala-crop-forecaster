@@ -30,6 +30,10 @@ More screenshots (mobile / desktop, Malayalam / English, light / dark): [`docs/s
   forecasts at h = 7), LightGBM scored 5.13 % MAPE against 5.11 % for naive (DM p = 0.75). Adding
   arrivals, Tamil Nadu and Karnataka markets, or per-series blends did not help. So the
   **published forecast is naive**, and LightGBM quantiles only supply the p10–p90 band.
+- **First LightGBM promotion (2026-10-09):** with the 15 Phase 6b series added, LightGBM beat naive at the
+  14-day horizon (+3.7 % MAPE, DM p = 7×10⁻⁵, 52-fold) and became the h = 14 champion; h = 1 and h = 7
+  remain naive. From 11 Oct a per-crop guard keeps naive for any crop where a promoted model is
+  significantly worse.
 - **Pepper is where models do harm.** LightGBM was significantly *worse* than naive for pepper
   (−6.3 %, p = 0.009).
 - **The `market` feature was memorisation.** Removing it gave exactly naive's error, and feature
