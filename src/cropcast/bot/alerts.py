@@ -200,6 +200,15 @@ class Delivery:
             )
 
 
+def broadcast_sender() -> Send:
+    """Digests and alerts: silent (no sound) during quiet hours, 21:00-06:00 IST."""
+
+    def send(chat_id: int, body: str) -> Any:
+        return telegram.send_message(chat_id, body, silent=telegram.quiet_hours())
+
+    return send
+
+
 def run_user_alerts(
     engine: Engine,
     run_date: date,
@@ -208,7 +217,7 @@ def run_user_alerts(
     with_digests: bool = True,
 ) -> DeliveryResult:
     if send is None and telegram.configured():
-        send = lambda chat_id, body: telegram.send_message(chat_id, body)  # noqa: E731
+        send = broadcast_sender()
     d = Delivery(engine, send, dry_run)
     if send is None and not dry_run:
         d.res.skipped.append("TELEGRAM_BOT_TOKEN not set: messages logged, not sent")

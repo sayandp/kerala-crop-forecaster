@@ -1,10 +1,20 @@
 name: daily-pipeline
 
 on:
+  # MORNING run on the previous day's complete prices. Primary trigger: an external cron
+  # (cron-job.org, 05:00 IST) calling workflow_dispatch with mode=scheduled - see
+  # docs/external-trigger.md. GitHub's own cron is the fallback (it often starts hours late);
+  # whichever comes second finds the day done (--once-per-day) and writes / posts nothing.
   schedule:
-    - cron: "17 14 * * *"  # 14:17 UTC = 19:47 IST (off the hour: GitHub delays on-the-hour crons)
+    - cron: "37 23 * * *"  # 23:37 UTC = 05:07 IST next day (off the hour)
   workflow_dispatch:
     inputs:
+      mode:
+        description: "scheduled = behave like the cron (weekly/monthly extras, once per day)"
+        required: false
+        default: "manual"
+        type: choice
+        options: [manual, scheduled]
       date:
         description: "Run date (YYYY-MM-DD, IST). Empty = today."
         required: false
@@ -25,7 +35,7 @@ permissions:
 jobs:
   run:
     runs-on: ubuntu-24.04
-    timeout-minutes: 45  # Sunday runs retrain + gate (~6-10 min); weekdays take ~3 min
+    timeout-minutes: 60  # Sunday runs retrain + gate (~16 min with 35 series); weekdays ~3 min
     env:
       ENV: prod
       DATABASE_URL: ${{ secrets.DATABASE_URL }}
@@ -58,24 +68,28 @@ jobs:
           RUN_DATE: ${{ inputs.date }}
           RUN_STEPS: ${{ inputs.steps || 'ingest,validate,weather,clean,predict,user_alerts,shadow,evaluate,notify,revalidate' }}
           EVENT: ${{ github.event_name }}
+          MODE: ${{ inputs.mode }}
           GH_TOKEN: ${{ github.token }}  # archive step uploads GitHub Release assets
         run: |
-          if [ "$EVENT" = "schedule" ]; then
-            # Weekly (Sunday): retrain + register + price gate before predicting, and the
-            # pre-registered live check of the move challenger after evaluating.
-            if [ "$(date -u +%u)" = "7" ]; then
+          extra=()
+          if [ "$EVENT" = "schedule" ] || [ "$MODE" = "scheduled" ]; then
+            extra+=(--once-per-day)
+            # Calendar decisions use the IST date (the run starts ~05:00 IST).
+            # Weekly (Sunday IST, early morning): retrain + register + price gate before
+            # predicting, and the pre-registered live check of the move challenger after evaluating.
+            if [ "$(TZ=Asia/Kolkata date +%u)" = "7" ]; then
               RUN_STEPS="${RUN_STEPS/clean,/clean,retrain,}"
               RUN_STEPS="${RUN_STEPS/evaluate,/evaluate,promotion_check,drift,}"
               RUN_STEPS="$RUN_STEPS,weekly_summary"  # admin summary after everything else
             fi
             # Monthly (1st): retention - prices_raw > 90 d, forecasts / shadow > 180 d
             # -> GitHub Release (verified) -> deleted from Neon.
-            if [ "$(date -u +%d)" = "01" ]; then
+            if [ "$(TZ=Asia/Kolkata date +%d)" = "01" ]; then
               RUN_STEPS="$RUN_STEPS,archive"
             fi
           fi
           echo "steps: $RUN_STEPS"
-          args=(--steps "$RUN_STEPS" --status-file status/last_run.json)
+          args=(--steps "$RUN_STEPS" --status-file status/last_run.json "${extra[@]}")
           if [ -n "$RUN_DATE" ]; then args+=(--date "$RUN_DATE"); fi
           uv run python -m cropcast.pipeline "${args[@]}"
 

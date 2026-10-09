@@ -18,6 +18,6 @@ crops:
   bitter_gourd: "Bitter gourd"
   drumstick: "Drumstick"
   cucumber: "Cucumber"
-line: "{market}: today ₹{price}/kg · expected in 7 days ₹{lo}–{hi}"
+line: "{market}: ₹{price}/kg · expected in 7 days ₹{lo}–{hi}"  # price of the header date
 line_stale: "{market}: ₹{price}/kg on {obs_date} · expected in 7 days ₹{lo}–{hi}"  # latest price is not from today
 footer: "Source: Agmarknet modal prices (₹/quintal ÷ 100). A range, not a guarantee. {repo}"

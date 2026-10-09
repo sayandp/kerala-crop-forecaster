@@ -29,7 +29,7 @@ help: |-
   Send just /price or /alert to pick with buttons.
 about: |-
   How it works:
-  • Every evening we collect Kerala wholesale (mandi) prices from Agmarknet (₹/quintal ÷ 100 = ₹/kg).
+  • Every morning we collect the previous day's Kerala wholesale (mandi) prices from Agmarknet (₹/quintal ÷ 100 = ₹/kg).
   • Our forecast for 7 days ahead is "today's price": in two years of back-tests no machine-learning model beat it. The model only supplies the range (p10–p90): about 8 times in 10 the price should land inside it.
   • Price alerts use real prices only, never the model.
   • Not a guarantee. Check your local market before selling.
@@ -77,7 +77,7 @@ alerts_all_stopped: "All alerts ({n}) stopped."
 alert_fired_above: "🔔 {crop} · {market}: ₹{price}/kg on {date} — above your ₹{amount}."
 alert_fired_below: "🔔 {crop} · {market}: ₹{price}/kg on {date} — below your ₹{amount}."
 alert_fired_tail: "(alert #{id}; re-arms after the price crosses back · /stop {id})"
-subscribed: "✅ {crop}: you'll get a price message every evening. Stop with /unsubscribe {crop_key}."
+subscribed: "✅ {crop}: you'll get a price message every morning. Stop with /unsubscribe {crop_key}."
 already_subscribed: "{crop}: already subscribed."
 unsubscribed: "{crop}: daily message stopped."
 not_subscribed: "{crop}: not subscribed."

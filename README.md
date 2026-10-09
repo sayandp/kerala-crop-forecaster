@@ -7,7 +7,7 @@
 [![bot users (30 d)](https://img.shields.io/endpoint?url=https%3A%2F%2Fcropcast-api-21tx.onrender.com%2Fbadge%2Fbot-users.json)](https://t.me/keralacropprices_bot)
 
 A self-retraining MLOps system for daily mandi prices of five Kerala crops: Nendran banana,
-coconut, black pepper, rubber RSS-4 and tapioca. It runs every evening on free tiers (₹0). It
+coconut, black pepper, rubber RSS-4 and tapioca. It runs every morning (05:00 IST, on the previous day's prices) on free tiers (₹0). It
 publishes today's price and the range expected in 7 days, in Malayalam first, on a dashboard,
 an API and a Telegram channel.
 
@@ -55,7 +55,7 @@ flowchart LR
     DG[data.gov.in fallback]
     OM[Open-Meteo]
   end
-  subgraph gha["GitHub Actions — daily 19:47 IST"]
+  subgraph gha["GitHub Actions — daily 05:00 IST"]
     I[ingest → validate<br/>Pandera contract] --> C[clean]
     C --> P[predict<br/>naive + LGBM band]
     P --> S[shadow<br/>move classifier]

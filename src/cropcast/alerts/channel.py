@@ -23,6 +23,7 @@ import pandas as pd
 import yaml
 from sqlalchemy import Engine, text
 
+from cropcast.bot.telegram import quiet_hours
 from cropcast.config import PROJECT_ROOT, settings
 from cropcast.validate.units import implausible
 
@@ -184,7 +185,13 @@ def notify(engine: Engine, run_date: date, dry_run: bool = False) -> NotifyResul
         return NotifyResult("dry_run", reason, text=post)
     body = _api(
         "sendMessage",
-        {"chat_id": settings.telegram_channel_id, "text": post, "disable_web_page_preview": True},
+        {
+            "chat_id": settings.telegram_channel_id,
+            "text": post,
+            "disable_web_page_preview": True,
+            # 21:00-06:00 IST: post without a notification sound
+            "disable_notification": quiet_hours(),
+        },
     )
     message_id = int(body["result"]["message_id"])
     with engine.begin() as conn:

@@ -132,14 +132,14 @@
   },
   "home": {
     "title": "Today's crop prices",
-    "lead": "Wholesale (mandi) prices in Kerala, updated every evening.",
+    "lead": "Wholesale (mandi) prices in Kerala, updated every morning with the previous day's prices.",
     "vs7": "vs 7 days ago",
     "best": "Best market today",
     "updated": "Price from",
     "open": "See markets and history",
     "install": "Add to home screen",
     "installIos": "To install: tap Share, then “Add to Home Screen”.",
-    "noData": "Prices appear after the evening update."
+    "noData": "Prices appear after the morning update."
   },
   "crop": {
     "today": "Today at {market}",
@@ -190,7 +190,7 @@
   },
   "how": {
     "title": "How it works",
-    "lead": "Every evening the prices are collected from Agmarknet, checked, and the next week's range is computed. Our forecast for the price level is the honest one — today's price — because no model beat it in two years of tests. Here is the evidence.",
+    "lead": "Every morning the previous day's prices are collected from Agmarknet, checked, and the next week's range is computed. Our forecast for the price level is the honest one — today's price — because no model beat it in two years of tests. Here is the evidence.",
     "accuracy": "Live accuracy against the simplest forecast",
     "models": "Every model decision with its evidence",
     "challenger": "The pre-registered shadow test",
