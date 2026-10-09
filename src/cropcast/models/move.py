@@ -88,6 +88,56 @@ class MoveClassifier:
         return path
 
 
+# The pre-registered move classifier (reports/preregistration_e4a.md) was specified on exactly
+# these 20 series. Series added later (Phase 6b crops) must never enter its training data, its
+# shadow predictions or its spec hash, or the live evidence would silently reset.
+PREREG_SERIES = frozenset(
+    {
+        "banana|Chenkal VFPCK|Nendran",
+        "banana|Elamad VFPCK|Nendran",
+        "banana|Kayamkulam|Nendran",
+        "banana|Kunnukara VFPCK|Nendran",
+        "banana|Mookkannur VFPCK|Nendran",
+        "banana|Parassala|Nendran",
+        "banana|Thiruvaniyoor VFPCK|Nendran",
+        "banana|Vengannore VFPCK|Nendran",
+        "coconut|Koduvayoor|Big",
+        "coconut|North Paravur|Big",
+        "coconut|Palakkad|Coconut",
+        "pepper|Kannur|Other",
+        "pepper|Manjeswaram|Garbled Other",
+        "pepper|North Paravur|Garbled",
+        "rubber|Kalpetta|RSS-4",
+        "rubber|Pulpally|Other",
+        "tapioca|Manjeswaram|Other",
+        "tapioca|North Paravur|Other",
+        "tapioca|Payyannur|Other",
+        "tapioca|Perumbavoor|Tapioca",
+    }
+)
+
+
+def move_series(series: list[Series]) -> list[Series]:
+    """Only the pre-registered series (order preserved)."""
+    return [s for s in series if f"{s.commodity}|{s.market}|{s.variety}" in PREREG_SERIES]
+
+
+def move_rows(df: pd.DataFrame) -> pd.DataFrame:
+    """Feature rows of the pre-registered series only, unused categories dropped."""
+    key = (
+        df["commodity"].astype(str)
+        + "|"
+        + df["market"].astype(str)
+        + "|"
+        + df["variety"].astype(str)
+    )
+    out = df[key.isin(PREREG_SERIES)].copy()
+    for col in ("commodity", "market", "variety"):
+        if isinstance(out[col].dtype, pd.CategoricalDtype):
+            out[col] = out[col].cat.remove_unused_categories()
+    return out
+
+
 def spec(series: list[Series]) -> dict[str, Any]:
     return {
         "horizon": HORIZON,

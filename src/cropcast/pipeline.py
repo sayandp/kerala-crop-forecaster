@@ -42,7 +42,7 @@ from cropcast.ingest.agmarknet import IST, fetch_kerala_prices, today_ist
 from cropcast.ingest.mappings import normalize
 from cropcast.ingest.weather import fetch_weather
 from cropcast.logging_setup import setup_logging
-from cropcast.models.move import spec_hash
+from cropcast.models.move import move_series, spec_hash
 from cropcast.models.training import (
     MlflowSession,
     backtest_and_log,
@@ -433,7 +433,7 @@ def run_shadow(ctx: RunContext) -> StepResult:
     out = predict_shadow(
         ctx.engine or db.get_engine(),
         _serve_snapshot(ctx),
-        load_series(),
+        move_series(load_series()),  # pre-registered series only
         ctx.run_date,
         ctx.run_id,
         ctx.dry_run,
@@ -448,7 +448,9 @@ def run_evaluate(ctx: RunContext) -> StepResult:
     """Matured forecasts / shadow predictions vs actuals -> model_metrics (split='live')."""
     engine = ctx.engine or db.get_engine()
     price = price_live_metrics(matured_forecasts(engine, ctx.run_date))
-    ev = shadow_evaluation(matured_shadow(engine, ctx.run_date, spec_hash(load_series())))
+    ev = shadow_evaluation(
+        matured_shadow(engine, ctx.run_date, spec_hash(move_series(load_series())))
+    )
     shadow_rows = shadow_metric_rows(ev)
     if not ctx.dry_run:
         version = (
@@ -484,7 +486,9 @@ def run_promotion_check(ctx: RunContext) -> StepResult:
     configure_mlflow()
     client = MlflowClient()
     version = alias_version(client, MOVE_MODEL, "challenger")
-    ev = shadow_evaluation(matured_shadow(engine, ctx.run_date, spec_hash(load_series())))
+    ev = shadow_evaluation(
+        matured_shadow(engine, ctx.run_date, spec_hash(move_series(load_series())))
+    )
     verdicts = {}
     for r in ev.to_dict("records"):
         crop, verdict = str(r["crop"]), str(r["verdict"])

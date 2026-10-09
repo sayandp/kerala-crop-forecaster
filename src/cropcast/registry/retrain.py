@@ -29,7 +29,7 @@ from cropcast.features.build import FEATURE_COLUMNS, TARGET
 from cropcast.features.series import SERIES_PATH, load_series
 from cropcast.models.backtest import metrics_table, run_backtest
 from cropcast.models.lgbm import LGBMForecaster
-from cropcast.models.move import MoveClassifier, spec, spec_hash
+from cropcast.models.move import MoveClassifier, move_rows, move_series, spec, spec_hash
 from cropcast.models.training import HORIZONS, prepare_features
 from cropcast.registry.promote import (
     MOVE_MODEL,
@@ -146,12 +146,14 @@ def retrain_and_register(engine: Engine, run_date: date, run_id: int | None) -> 
                 "coverage_80": round(coverage, 1),
             }
         # Move challenger: the pre-registered spec, refit on all data.
-        h7 = feats[7].dropna(subset=[TARGET])
+        # Only the pre-registered series (Phase 6b crops never enter the move model).
+        h7 = move_rows(feats[7].dropna(subset=[TARGET]))
         clf = MoveClassifier().fit(h7)
         clf_path = clf.save(d / "move" / "classifier.txt")
-        sh = spec_hash(series)
+        prereg = move_series(series)
+        sh = spec_hash(prereg)
         (d / "spec.json").write_text(
-            json.dumps(spec(series), indent=1, default=str), encoding="utf-8"
+            json.dumps(spec(prereg), indent=1, default=str), encoding="utf-8"
         )
         mv = _register(
             client,
