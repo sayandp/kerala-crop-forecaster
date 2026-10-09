@@ -52,15 +52,18 @@ def _kg(rs_per_quintal: float) -> str:
 
 
 def gather(engine: Engine, run_date: date) -> pd.DataFrame:
-    """Configured markets: last observed price + its date, 7-day p10/p90 for run_date."""
+    """Configured markets: last observed price + its date, 7-day p10/p90 of the latest as-of."""
     sql = """
-        SELECT f.commodity, f.market, f.variety, f.p10::float8 AS p10, f.p90::float8 AS p90,
+        SELECT f.commodity, f.market, f.variety, f.forecast_date AS as_of,
+               f.p10::float8 AS p10, f.p90::float8 AS p90,
                f.last_value::float8 AS last_value,
                (SELECT max(c.date) FROM prices_clean c
                  WHERE c.commodity = f.commodity AND c.market = f.market
                    AND c.variety = f.variety AND c.date <= f.forecast_date) AS obs_date
         FROM forecasts f
-        WHERE f.forecast_date = :d AND f.horizon = 7
+        -- forecasts are keyed by data as-of date: the newest as-of on or before the run date
+        WHERE f.forecast_date = (SELECT max(forecast_date) FROM forecasts WHERE forecast_date <= :d)
+          AND f.horizon = 7
     """
     with engine.connect() as conn:
         return pd.read_sql(text(sql), conn, params={"d": run_date})
@@ -172,7 +175,9 @@ def notify(engine: Engine, run_date: date, dry_run: bool = False) -> NotifyResul
     rows = postable(rows, run_date)
     if rows.empty:
         return NotifyResult("skipped", f"no market price fresher than {MAX_PRICE_AGE_DAYS} days")
-    post = render_post(rows, run_date)
+    # Dated by the prices' as-of date (the run itself usually starts after midnight IST).
+    asof = pd.Timestamp(rows["as_of"].max()).date() if "as_of" in rows else run_date
+    post = render_post(rows, asof)
     if dry_run or not (settings.telegram_bot_token and settings.telegram_channel_id):
         reason = "dry-run" if dry_run else "TELEGRAM_BOT_TOKEN / TELEGRAM_CHANNEL_ID not set"
         log.info("channel post (not sent)", extra={"reason": reason, "chars": len(post)})

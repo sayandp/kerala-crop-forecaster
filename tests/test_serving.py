@@ -298,3 +298,85 @@ def test_holm_adjustment() -> None:
     assert adj["c"] == pytest.approx(0.09)  # 3 x 0.03
     assert adj["b"] == pytest.approx(0.09)  # max(0.09, 2 x 0.04)
     assert adj["d"] == 1.0
+
+
+# --- forecasts keyed by data as-of date (2026-10-09) -----------------------------------------
+
+
+@pytest.mark.db
+def test_forecasts_keyed_by_data_asof(
+    engine: Engine,
+    models: dict[str, Any],
+    sample: pd.DataFrame,
+    series: list[Series],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def fake_load(name: str, alias: str) -> tuple[Any, str]:
+        m = models["move"] if "move" in name else models["naive"]
+        return SimpleNamespace(predict=lambda df: m.predict(None, df)), "1"
+
+    monkeypatch.setattr(batch, "_load", fake_load)
+    monkeypatch.setattr(
+        batch,
+        "MlflowClient",
+        lambda: SimpleNamespace(
+            get_model_version=lambda n, v: SimpleNamespace(tags={"spec_hash": spec_hash(series)})
+        ),
+    )
+    d = ASOF
+    prices = sample[pd.to_datetime(sample["date"]) <= pd.Timestamp(d)]
+
+    def snap(p: pd.DataFrame) -> Snapshot:
+        return Snapshot(p, pd.DataFrame(), Path("x"), Path("y"))
+
+    def counts() -> tuple[int, int, date | None]:
+        with engine.connect() as conn:
+            fc = conn.execute(text("SELECT count(*) FROM forecasts")).scalar_one()
+            sh = conn.execute(text("SELECT count(*) FROM shadow_predictions")).scalar_one()
+            last = conn.execute(text("SELECT max(forecast_date) FROM forecasts")).scalar()
+        return int(fc), int(sh), last
+
+    # Evening run on d with prices up to d: keyed by d.
+    first = batch.predict_prices(engine, snap(prices), series, d, None)
+    batch.predict_shadow(engine, snap(prices), series, d, None)
+    assert first.attrs["as_of"] == d and set(first["forecast_date"]) == {pd.Timestamp(d)}
+    before = counts()
+
+    # The run GitHub starts after midnight (run date d+1) with no new prices: writes nothing.
+    midnight = batch.predict_prices(engine, snap(prices), series, d + timedelta(days=1), None)
+    shadow = batch.predict_shadow(engine, snap(prices), series, d + timedelta(days=1), None)
+    assert midnight.empty and "no new price data" in midnight.attrs["skipped"]
+    assert shadow.empty and counts() == before
+
+    # A later run with prices dated d+1: keyed by d+1 (not the run date d+2), targets d+1+h.
+    nxt = d + timedelta(days=1)
+    latest = prices[pd.to_datetime(prices["date"]) == pd.Timestamp(d)].copy()
+    latest["date"] = pd.Series([nxt] * len(latest), index=latest.index).astype(prices["date"].dtype)
+    newer = pd.concat([prices, latest], ignore_index=True)
+    later = batch.predict_prices(engine, snap(newer), series, d + timedelta(days=2), None)
+    assert later.attrs["as_of"] == nxt
+    assert set(pd.to_datetime(later["forecast_date"]).dt.date) == {nxt}
+    targets = pd.to_datetime(later["target_date"]).dt.date
+    assert (targets == [nxt + timedelta(days=int(h)) for h in later["horizon"]]).all()
+    assert counts()[2] == nxt
+
+    # Live evaluation still joins the as-of keyed forecast to the actual price at its target.
+    r = later[later["horizon"] == 1].iloc[0]
+    with engine.begin() as conn:
+        conn.execute(
+            text(
+                "INSERT INTO prices_clean (commodity, market, variety, date, modal_price, "
+                "n_reports, sources) VALUES (:c, :m, :v, :t, 1234, 1, 't') ON CONFLICT DO NOTHING"
+            ),
+            {
+                "c": r["commodity"],
+                "m": r["market"],
+                "v": r["variety"],
+                "t": nxt + timedelta(days=1),
+            },
+        )
+    matured = live.matured_forecasts(engine, nxt + timedelta(days=1))
+    hit = matured[(matured["market"] == r["market"]) & (matured["horizon"] == 1)]
+    assert len(hit) == 1
+    assert pd.Timestamp(hit.iloc[0]["forecast_date"]).date() == nxt
+    assert float(hit.iloc[0]["actual"]) == 1234.0
