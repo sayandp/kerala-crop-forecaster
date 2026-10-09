@@ -64,7 +64,13 @@
     "why": "We tested a machine-learning model (LightGBM) with many signals: arrivals, Tamil Nadu and Karnataka market prices, weather and festivals. Over two years of back-tests none beat \"last price\" for the price level, so we publish the honest naive forecast and use the model only for the uncertainty range.",
     "report": "Read the Phase 2.5 report",
     "backtest": "Back-test error (MAPE, %)",
-    "noData": "Live accuracy appears once forecasts mature (7+ days)."
+    "noData": "Live accuracy appears once forecasts mature (7+ days).",
+    "perCrop": "How often the price fell inside the range, per crop",
+    "perCropIntro": "Back-test over the last year: share of prices inside the p10–p90 range (target 80 %). The range of each crop is calibrated on its own recent errors; the number before the arrow is without calibration.",
+    "crop": "Crop",
+    "h1": "1 day",
+    "h7": "7 days",
+    "h14": "14 days"
   },
   "models": {
     "title": "Models and decisions",

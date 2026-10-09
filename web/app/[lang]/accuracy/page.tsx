@@ -3,7 +3,8 @@ import { Card, Empty, Page, Section, Table } from "@/components/ui";
 import { REPO } from "@/lib/format";
 import { dict } from "@/lib/i18n";
 import { langStaticParams, pageMetadata, resolveLang, type LangParams } from "@/lib/page";
-import { backtestMape, liveAccuracy } from "@/lib/queries";
+import { CROPS, cropName } from "@/lib/crops";
+import { backtestMape, bandCoverage, liveAccuracy } from "@/lib/queries";
 
 export const revalidate = 3600;
 export const generateStaticParams = langStaticParams;
@@ -19,7 +20,15 @@ const pct = (v: number | null | undefined) => (v === null || v === undefined ? "
 export default async function Accuracy({ params }: LangParams) {
   const lang = await resolveLang(params);
   const t = dict(lang).accuracy;
-  const [live, backtest] = await Promise.all([liveAccuracy(), backtestMape()]);
+  const [live, backtest, bands] = await Promise.all([liveAccuracy(), backtestMape(), bandCoverage()]);
+  const band = (model: string, crop: string, h: number) =>
+    bands.find((b) => b.model_name === model && b.crop === crop && b.horizon === h)?.value;
+  const cell = (crop: string, h: number) => {
+    const after = band("band_conformal", crop, h);
+    const before = band("band_raw", crop, h);
+    if (after === undefined) return "–";
+    return `${before === undefined ? "" : `${before.toFixed(0)} → `}${after.toFixed(0)} %`;
+  };
   const live7 = live.filter((r) => r.horizon === 7);
   const bt = (model: string, h: number) => backtest.find((b) => b.model_name === model && b.horizon === h)?.mape;
 
@@ -69,6 +78,20 @@ export default async function Accuracy({ params }: LangParams) {
             {t.report}
           </a>
         </Card>
+        {bands.length > 0 && (
+          <Section title={t.perCrop}>
+            <p className="-mt-1 mb-3 text-[14px] leading-relaxed text-ink-2">{t.perCropIntro}</p>
+            <Table
+              head={[t.crop, t.h1, t.h7, t.h14]}
+              rows={CROPS.filter((c) => band("band_conformal", c, 7) !== undefined).map((c) => [
+                cropName(lang, c),
+                cell(c, 1),
+                cell(c, 7),
+                cell(c, 14),
+              ])}
+            />
+          </Section>
+        )}
       </Page>
     </>
   );
