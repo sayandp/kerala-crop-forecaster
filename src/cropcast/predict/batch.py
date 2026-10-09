@@ -14,6 +14,7 @@ than the last stored one writes nothing (no new price data -> no new predictions
 
 from __future__ import annotations
 
+import json
 import logging
 import subprocess
 from datetime import date
@@ -31,7 +32,12 @@ from cropcast.features.series import Series
 from cropcast.features.snapshot import Snapshot
 from cropcast.models.move import CLASSES, HORIZON, JUDGED_CROPS, spec_hash, trend_class
 from cropcast.models.training import HORIZONS
-from cropcast.registry.promote import MOVE_MODEL, alias_version, price_model_name
+from cropcast.registry.promote import (
+    MOVE_MODEL,
+    NAIVE_ROUTED_TAG,
+    alias_version,
+    price_model_name,
+)
 
 log = logging.getLogger(__name__)
 
@@ -61,6 +67,28 @@ def _skip(engine: Engine, table: str, asof: date) -> date | None:
         )
         return last
     return None
+
+
+def route_naive(rows: pd.DataFrame, pred: pd.DataFrame, crops: set[str]) -> pd.Series:
+    """Per-crop guard: rows of `crops` get the naive point (last price) and the same band.
+
+    The band does not depend on the point forecast (both champions share the LGBM quantile
+    band around log1p(last price)); only the clamp keeps p50 inside it. Returns the mask."""
+    from cropcast.bot.names import crop_of
+
+    mask = pd.Series(
+        [
+            crop_of(str(c), str(m), str(v)) in crops
+            for c, m, v in zip(rows["commodity"], rows["market"], rows["variety"], strict=True)
+        ],
+        index=rows.index,
+    )
+    if mask.any():
+        last = rows.loc[mask, "last_value"].astype(float)
+        pred.loc[mask, "p50"] = last
+        pred.loc[mask, "p10"] = pred.loc[mask, "p10"].clip(upper=last)
+        pred.loc[mask, "p90"] = pred.loc[mask, "p90"].clip(lower=last)
+    return mask
 
 
 def origin_rows(snap: Snapshot, series: list[Series], run_date: date, horizon: int) -> pd.DataFrame:
@@ -94,7 +122,10 @@ def predict_prices(
         name = price_model_name(h)
         model, version = _load(name, "champion")
         rows = origin_rows(snap, series, asof, h)
-        pred = model.predict(rows)
+        pred = model.predict(rows).copy()
+        tags = MlflowClient().get_model_version(name, version).tags or {}
+        routed = set(json.loads(tags.get(NAIVE_ROUTED_TAG, "[]")))
+        naive_rows = route_naive(rows, pred, routed)
         frames.append(
             rows[["commodity", "market", "variety", "origin_date", "target_date", "last_value"]]
             .astype({"commodity": str, "market": str, "variety": str})
@@ -104,7 +135,7 @@ def predict_prices(
                 p50=pred["p50"].round(2),
                 p90=pred["p90"].round(2),
                 model_name=name,
-                model_version=version,
+                model_version=[f"{version}:naive" if n else version for n in naive_rows],
                 run_id=run_id,
             )
             .rename(columns={"origin_date": "forecast_date"})

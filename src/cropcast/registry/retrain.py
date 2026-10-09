@@ -32,10 +32,13 @@ from cropcast.models.lgbm import LGBMForecaster
 from cropcast.models.move import MoveClassifier, move_rows, move_series, spec, spec_hash
 from cropcast.models.training import HORIZONS, prepare_features
 from cropcast.registry.promote import (
+    CROP_GUARD_FROM,
     MOVE_MODEL,
+    NAIVE_ROUTED_TAG,
     REGISTRY_EXPERIMENT,
     Decision,
     alias_version,
+    crop_guard,
     price_gate,
     price_model_name,
     record,
@@ -131,6 +134,29 @@ def retrain_and_register(engine: Engine, run_date: date, run_id: int | None) -> 
             record(engine, decision, run_id)
             if decision.decision == "promote":
                 set_alias(client, name, "champion", chall_v)
+                if run_date >= CROP_GUARD_FROM:
+                    routed = crop_guard(diag, h)
+                    client.set_model_version_tag(
+                        name, chall_v, NAIVE_ROUTED_TAG, json.dumps(sorted(routed))
+                    )
+                    for crop, m in routed.items():
+                        record(
+                            engine,
+                            Decision(
+                                name,
+                                crop,
+                                "route naive",
+                                "per-crop guard (rule of 2026-10-09): LGBM worse than naive "
+                                f"for {crop} at h={h} on the 52-fold diagnostic "
+                                f"({m['rel_pct']:+.2f} %, DM p={m['dm_p']:.3g}) -> "
+                                "serve naive for this crop",
+                                challenger_version=chall_v,
+                                champion_version=chall_v,
+                                metrics=m,
+                            ),
+                            run_id,
+                        )
+                    client.log_metric(parent.info.run_id, f"h{h}_naive_routed_crops", len(routed))
             # Client API with an explicit run id: after log_model, MLflow 3's fluent API tags
             # metrics with the active LoggedModel's id, which DagsHub rejects (BAD_REQUEST).
             for key, value in {
