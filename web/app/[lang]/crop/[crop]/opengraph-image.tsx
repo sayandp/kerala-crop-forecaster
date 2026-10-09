@@ -1,4 +1,4 @@
-import { CROPS, REF_MARKET, isCrop, type Crop } from "@/lib/crops";
+import { CROPS, cropOf, isCrop, refMarket } from "@/lib/crops";
 import { shortDate } from "@/lib/format";
 import { dict } from "@/lib/i18n";
 import { cropOgImage, ogContentType, ogImage, ogSize } from "@/lib/og";
@@ -17,7 +17,7 @@ export function generateStaticParams(): { crop: string }[] {
 export default async function Image({ params }: { params: Promise<{ crop: string }> }) {
   const { crop } = await params;
   if (!isCrop(crop)) return ogImage("Kerala market prices", "Daily mandi prices");
-  const row = (await latestAll()).find((r) => r.commodity === crop && r.market === REF_MARKET[crop as Crop]);
+  const row = (await latestAll()).find((r) => cropOf(r) === crop && r.market === refMarket(crop));
   const en = dict("en").crops[crop];
   if (!row) return ogImage(en, "Kerala market prices");
   return cropOgImage({

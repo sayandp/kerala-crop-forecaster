@@ -23,7 +23,7 @@ export function CropCard({ lang, c }: { lang: Lang; c: CropCardData }) {
             <CropIcon crop={c.crop} />
           </span>
           <div className="min-w-0">
-            <h2 className="truncate text-[17px] leading-snug font-bold">{name}</h2>
+            <h3 className="truncate text-[17px] leading-snug font-bold">{name}</h3>
             <p className="truncate text-[13px] text-ink-2">{marketName(c.market, lang)}</p>
           </div>
         </div>

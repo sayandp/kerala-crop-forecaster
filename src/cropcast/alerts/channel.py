@@ -94,7 +94,7 @@ def render_post(rows: pd.DataFrame, run_date: date) -> str:
         items = []
         for mk in markets:
             r = rows[
-                (rows["commodity"] == crop)
+                (rows["commodity"] == mk.get("commodity", crop))
                 & (rows["market"] == mk["market"])
                 & (rows["variety"] == mk["variety"])
             ]

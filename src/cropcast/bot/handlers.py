@@ -15,7 +15,7 @@ from datetime import date
 from typing import Any
 
 from cropcast.bot import names, render, telegram
-from cropcast.bot.names import CROPS, Served, crop_name, market_name, markets_of
+from cropcast.bot.names import CROPS, Served, crop_name, crop_of, market_name, markets_of
 from cropcast.bot.render import kg, t
 from cropcast.bot.store import Store, today_ist
 from cropcast.config import settings
@@ -334,24 +334,24 @@ class Bot:
         self._create_alert(chat_id, lang, s, direction, amount)
 
     def _threshold_menu(self, chat_id: int, lang: str, s: Served) -> None:
-        row = next((r for r in self.store.prices(s.commodity) if r.series == s), None)
+        row = next((r for r in self.store.prices(s.key) if r.series == s), None)
         if row is None or row.price is None or row.date is None:
             self.send(
                 chat_id,
                 t(
                     lang,
                     "no_price",
-                    crop=crop_name(s.commodity, lang),
+                    crop=crop_name(s.key, lang),
                     market=market_name(s.market, lang),
                 ),
             )
             return
-        idx = markets_of(s.commodity).index(s)
+        idx = markets_of(s.key).index(s)
         price_kg = row.price / 100
         buttons = [
             {
                 "text": t(lang, "btn_above" if d == "a" else "btn_below", amount=render.amount(v)),
-                "callback_data": f"at:{s.commodity}:{idx}:{d}:{render.amount(v)}",
+                "callback_data": f"at:{s.key}:{idx}:{d}:{render.amount(v)}",
             }
             for d, v in threshold_steps(price_kg)
         ]
@@ -360,7 +360,7 @@ class Bot:
             t(
                 lang,
                 "pick_threshold",
-                crop=crop_name(s.commodity, lang),
+                crop=crop_name(s.key, lang),
                 market=market_name(s.market, lang),
                 price=kg(row.price),
                 date=render.day(row.date, lang),
@@ -374,15 +374,15 @@ class Bot:
         if len(self.store.alerts(chat_id)) >= settings.bot_max_alerts:
             self.send(chat_id, t(lang, "alert_limit"))
             return
-        crop, market = crop_name(s.commodity, lang), market_name(s.market, lang)
-        row = next((r for r in self.store.prices(s.commodity) if r.series == s), None)
+        crop, market = crop_name(s.key, lang), market_name(s.market, lang)
+        row = next((r for r in self.store.prices(s.key) if r.series == s), None)
         if row is None or row.price is None:
             self.send(chat_id, t(lang, "no_price", crop=crop, market=market))
             return
         price_kg = row.price / 100
         state = initial_state(direction, amount, price_kg)
         alert_id = self.store.create_alert(chat_id, s, direction, amount, state, row.date, price_kg)
-        self.store.event(chat_id, "alert_created", s.commodity)
+        self.store.event(chat_id, "alert_created", s.key)
         condition = t(lang, f"condition_{direction}", amount=render.amount(amount))
         key = "alert_created" if state == "armed" else "alert_created_already"
         self.send(
@@ -412,7 +412,7 @@ class Bot:
                     lang,
                     "alerts_line",
                     id=a.id,
-                    crop=crop_name(a.commodity, lang),
+                    crop=crop_name(crop_of(a.commodity, a.market, a.variety), lang),
                     market=market_name(a.market, lang),
                     short=short,
                     state=state,

@@ -1,6 +1,6 @@
 import { CropIcon } from "@/components/CropIcon";
 import { Chip, DataCard, GlassCard, LargeTitle } from "@/components/glass";
-import { BOT, CROPS, botAlertLink, cropName, marketName } from "@/lib/crops";
+import { BOT, CROPS, botAlertLink, cropName, cropOf, marketName } from "@/lib/crops";
 import { TELEGRAM_CHANNEL } from "@/lib/format";
 import { dict } from "@/lib/i18n";
 import { langStaticParams, pageMetadata, resolveLang, type LangParams } from "@/lib/page";
@@ -50,7 +50,7 @@ export default async function Alerts({ params }: LangParams) {
             </h3>
             <ul className="flex flex-wrap gap-2">
               {latest
-                .filter((r) => r.commodity === crop)
+                .filter((r) => cropOf(r) === crop)
                 .map((r) => (
                   <li key={r.market}>
                     <Chip href={botAlertLink(crop, r.market)} external>

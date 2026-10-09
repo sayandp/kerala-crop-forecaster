@@ -1,6 +1,6 @@
 // Server-side shaping of query rows into what the pages show. Prices arrive in Rs./quintal
 // (Agmarknet) and leave as Rs./kg.
-import { CROPS, REF_MARKET, type Crop } from "@/lib/crops";
+import { CROPS, cropOf, refMarket, type Crop } from "@/lib/crops";
 import { STALE_DAYS, daysBetween } from "@/lib/format";
 import type { Lang } from "@/lib/i18n";
 import type { LatestRow, SeasonalRow, SparkRow } from "@/lib/queries";
@@ -19,6 +19,15 @@ export function isFresh(row: LatestRow): boolean {
   return row.d !== null && daysBetween(row.d, row.as_of) <= STALE_DAYS;
 }
 
+/** Headline series per crop (for the sparkline query). */
+export function refSeries(latest: LatestRow[]): LatestRow[] {
+  return CROPS.flatMap((crop) => {
+    const rows = latest.filter((r) => cropOf(r) === crop);
+    const ref = rows.find((r) => r.market === refMarket(crop)) ?? rows[0];
+    return ref ? [ref] : [];
+  });
+}
+
 export interface CropCardData {
   crop: Crop;
   market: string;
@@ -32,18 +41,18 @@ export interface CropCardData {
 
 export function cropCards(latest: LatestRow[], sparks: SparkRow[]): CropCardData[] {
   return CROPS.map((crop) => {
-    const rows = latest.filter((r) => r.commodity === crop);
-    const ref = rows.find((r) => r.market === REF_MARKET[crop]) ?? rows[0];
+    const rows = latest.filter((r) => cropOf(r) === crop);
+    const ref = rows.find((r) => r.market === refMarket(crop)) ?? rows[0];
     const fresh = rows.filter((r) => isFresh(r) && r.p !== null);
     const top = [...fresh].sort((a, b) => (b.p ?? 0) - (a.p ?? 0))[0];
     return {
       crop,
-      market: ref?.market ?? REF_MARKET[crop],
+      market: ref?.market ?? refMarket(crop),
       price: ref?.p != null ? kg(ref.p) : null,
       change: ref ? changePct(ref.p, ref.p7) : null,
       date: ref?.d ?? null,
       fresh: ref ? isFresh(ref) : false,
-      spark: sparks.filter((s) => s.commodity === crop).map((s) => s.p / 100),
+      spark: sparks.filter((s) => ref && s.commodity === ref.commodity && s.market === ref.market && s.variety === ref.variety).map((s) => s.p / 100),
       best: top && top.p !== null ? { market: top.market, price: kg(top.p) } : null,
     };
   });

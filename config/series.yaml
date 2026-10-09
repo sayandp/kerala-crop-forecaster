@@ -30,3 +30,26 @@ series:
   # Kalpetta "Other" (to 2025-11-06) + "RSS-4" (from 2025-11-07) stitched by the accepted
   # variety alias (guard ratio +0.6 %). Added in Phase 2.5 by decision.
   - {commodity: rubber, market: Kalpetta, variety: RSS-4}
+
+  # --- Phase 6b (approved 2026-10-09; coverage report: >= 2 yrs, < 20 % missing, alive) ---------
+  # `crop:` = the product key used by the dashboard / bot / channel when one commodity holds
+  # several products (banana varieties, big vs small onion); defaults to the commodity.
+  # Ingest keeps ONLY these markets for the new commodities (ingest/mappings.py, Neon budget).
+  # cash crops
+  - {commodity: arecanut, market: Manjeswaram, variety: Other}
+  - {commodity: arecanut, market: Payyannur, variety: Other}
+  - {commodity: coffee, market: Kalpetta, variety: Other}
+  - {commodity: ginger, market: Kayamkulam, variety: Other}
+  - {commodity: ginger, market: Manjeswaram, variety: Green Ginger}
+  # banana (not Nendran)
+  - {commodity: banana, market: Kayamkulam, variety: Palayamthodan, crop: palayankodan}
+  - {commodity: banana, market: Palakkad, variety: Poovan, crop: poovan}
+  # vegetables
+  - {commodity: tomato, market: Kayamkulam, variety: Other}
+  - {commodity: onion, market: Kayamkulam, variety: Big}
+  - {commodity: onion, market: Kayamkulam, variety: Small, crop: small_onion}
+  - {commodity: onion, market: Palakkad, variety: Small, crop: small_onion}
+  - {commodity: green_chilli, market: Kayamkulam, variety: Other}
+  - {commodity: drumstick, market: Kayamkulam, variety: Other}
+  - {commodity: bitter_gourd, market: Manjeswaram, variety: Bitter Gourd}
+  - {commodity: cucumber, market: Payyannur, variety: Other}

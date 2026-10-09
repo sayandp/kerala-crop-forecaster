@@ -224,7 +224,7 @@ def test_templates_render_for_every_crop_both_languages() -> None:
         for i, mk in enumerate(markets):
             rows.append(
                 {
-                    "commodity": crop,
+                    "commodity": mk.get("commodity", crop),
                     "market": mk["market"],
                     "variety": mk["variety"],
                     "p10": 4000.0,

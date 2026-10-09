@@ -3,7 +3,7 @@ footer: "ഉറവിടം: Agmarknet · ഉറപ്പല്ല / not a guara
 start: |-
   Hello! 🌾 Kerala market price bot.
 
-  Latest wholesale (mandi) prices of Nendran banana, coconut, black pepper, rubber and tapioca, and the price expected in 7 days.
+  Latest wholesale (mandi) prices of Kerala cash crops, bananas and vegetables, and the price expected in 7 days.
 
   • /price — check prices
   • /alert — get told when a price crosses a level
@@ -55,7 +55,7 @@ price_detail_noforecast: |-
   Latest price: ₹{price}/kg ({date})
 stale_warning: "⚠️ No new price in this market for {days} days."
 no_price: "{crop} · {market}: no price yet."
-unknown_crop: "I don't know \"{text}\". Try: banana, coconut, pepper, rubber, tapioca."
+unknown_crop: "I don't know \"{text}\". Type a crop (e.g. banana, coconut, tomato) or pick one:"
 unknown_market: "{crop}: no market \"{text}\". Available: {markets}"
 markets_title: "{crop}: markets with fresh prices"
 markets_none: "{crop}: no fresh price in the last 3 days."

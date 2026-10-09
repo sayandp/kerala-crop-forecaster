@@ -9,3 +9,14 @@ bands_rs_per_kg:
   pepper:  {min: 300, max: 1500}   # 530 / 655 / 900
   rubber:  {min: 100, max: 450}    # 19.5 / 184 / 298; ~1 % at 16-20 look like x10 entry errors
   tapioca: {min: 8,   max: 120}    # 12 / 30 / 55
+  # Phase 6b crops (selected series only), from the Agmarknet history 2018-01 .. 2026-10
+  # (0.1th / 50th / 99.9th percentile Rs./kg in comments); ~0.5x low / ~1.6x high headroom.
+  arecanut:     {min: 60,  max: 1100}  # 120 / 360 / 655
+  coffee:       {min: 40,  max: 500}   # 83 / 167 / 281
+  ginger:       {min: 10,  max: 500}   # 25 / 70 / 290 (2023 spike)
+  tomato:       {min: 5,   max: 200}   # 13 / 27 / 111
+  onion:        {min: 5,   max: 250}   # big 13 / 27 / 86; small 16 / 46 / 146
+  green_chilli: {min: 8,   max: 200}   # 16 / 41 / 111
+  drumstick:    {min: 5,   max: 550}   # 12 / 45 / 335 (seasonal spikes)
+  bitter_gourd: {min: 12,  max: 220}   # 31 / 60 / 125
+  cucumber:     {min: 5,   max: 100}   # 11 / 18 / 58

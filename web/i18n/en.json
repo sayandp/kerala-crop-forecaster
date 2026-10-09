@@ -1,7 +1,7 @@
 {
   "site": {
     "title": "Kerala market prices",
-    "tagline": "Daily mandi prices and the price expected in 7 days for banana, coconut, pepper, rubber and tapioca."
+    "tagline": "Daily Kerala mandi prices for cash crops, bananas and vegetables, and the price expected in 7 days."
   },
   "nav": {
     "prices": "Prices",
@@ -18,13 +18,23 @@
     "skip": "Skip to content"
   },
   "crops": {
-    "banana": "Nendran banana",
     "coconut": "Coconut",
     "pepper": "Black pepper",
     "rubber": "Rubber",
+    "arecanut": "Arecanut",
+    "coffee": "Coffee",
+    "ginger": "Ginger",
+    "banana": "Nendran banana",
+    "palayankodan": "Palayankodan banana",
+    "poovan": "Poovan banana",
     "tapioca": "Tapioca",
-    "title": "Crops",
-    "lead": "Pick a crop to see every market, the price history and whether today's price is high."
+    "tomato": "Tomato",
+    "onion": "Onion",
+    "small_onion": "Small onion",
+    "green_chilli": "Green chilli",
+    "bitter_gourd": "Bitter gourd",
+    "drumstick": "Drumstick",
+    "cucumber": "Cucumber"
   },
   "prices": {
     "pick": "Crop and market",
@@ -188,5 +198,14 @@
   },
   "share": {
     "telegram": "Telegram"
+  },
+  "groups": {
+    "cash": "Cash crops",
+    "banana": "Bananas",
+    "veg": "Vegetables"
+  },
+  "cropsPage": {
+    "title": "Crops",
+    "lead": "Pick a crop to see every market, the price history and whether today's price is high."
   }
 }

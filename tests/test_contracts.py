@@ -35,7 +35,7 @@ def test_good_rows_pass(good_prices: pd.DataFrame) -> None:
         ({"date": date(2026, 10, 4)}, "date:future_date"),
         ({"date": "not-a-date"}, "date:missing_value"),
         ({"state": "Tamil Nadu"}, "state:state_not_kerala"),
-        ({"commodity": "onion"}, "commodity:unknown_commodity"),
+        ({"commodity": "cardamom"}, "commodity:unknown_commodity"),
         ({"market": None}, "market:missing_value"),
         ({"variety": None}, "variety:missing_value"),
         ({"modal_price": None}, "modal_price:missing_value"),
