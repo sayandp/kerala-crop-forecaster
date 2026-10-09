@@ -24,6 +24,18 @@ an API and a Telegram channel.
 
 More screenshots (mobile / desktop, Malayalam / English, light / dark): [`docs/screens/`](docs/screens/).
 
+### Demo video (94 s)
+
+[![Demo video: dashboard, Telegram bot, how it works](docs/demo-video.jpg)](https://github.com/sayandp/kerala-crop-forecaster/releases/download/demo-video-2026-10-10/kerala-crop-horizontal.mp4)
+
+[Horizontal, English (94 s)](https://github.com/sayandp/kerala-crop-forecaster/releases/download/demo-video-2026-10-10/kerala-crop-horizontal.mp4) ·
+[vertical for WhatsApp, Malayalam (59 s)](https://github.com/sayandp/kerala-crop-forecaster/releases/download/demo-video-2026-10-10/kerala-crop-vertical.mp4).
+Nothing in either video was recorded by hand or typed in. Playwright captured the production
+dashboard. The bot replies come from the bot's own handlers, run against the live database with
+sending stubbed and a fake chat (its rows deleted afterwards). The channel post is the `notify`
+step's own rendering. [Remotion](https://www.remotion.dev) animates it all. Sources, captures and
+the one-command re-render: [`video/`](video/README.md).
+
 ## Key findings
 
 - **"Last price" is hard to beat.** Over a 52-fold walk-forward test (about 2 years, 11,579
