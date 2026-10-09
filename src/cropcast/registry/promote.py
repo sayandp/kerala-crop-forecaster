@@ -12,7 +12,7 @@ from __future__ import annotations
 import json
 import logging
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import date, datetime
 from typing import Any
 
 import mlflow
@@ -73,6 +73,39 @@ def price_gate(
         reason,
         metrics={"rel_improvement_pct": rel, "dm_p": p, "dm_stat": stat, "per_crop": per_crop},
     )
+
+
+# Per-crop guard (documented rule change 2026-10-09, effective from the first routine Sunday
+# retrain on/after 2026-10-11; not retroactive): when a horizon's LightGBM challenger is promoted,
+# any crop (product key) for which it is SIGNIFICANTLY WORSE than naive on the same 52-fold
+# diagnostic (DM p < 0.05, challenger loss higher) keeps the naive point forecast.
+CROP_GUARD_FROM = date(2026, 10, 11)
+NAIVE_ROUTED_TAG = "naive_routed"
+# Per-crop split-conformal offsets of the p10-p90 band (log1p units), set by the weekly retrain
+# (rule of 2026-10-09; display only, no gate). See cropcast.models.calibration.
+BAND_OFFSETS_TAG = "band_offsets"
+
+
+def crop_guard(
+    predictions: pd.DataFrame, horizon: int, challenger: str = "lgbm", champion: str = "naive"
+) -> dict[str, dict[str, float]]:
+    """Crops (product keys) where `challenger` is significantly worse than `champion`."""
+    from cropcast.bot.names import crop_of  # product keys (config/series.yaml `crop:`)
+
+    by_product = predictions.assign(
+        commodity=[
+            crop_of(str(c), str(m), str(v))
+            for c, m, v in zip(
+                predictions["commodity"], predictions["market"], predictions["variety"], strict=True
+            )
+        ]
+    )
+    sc = score(by_product, challenger, reference=champion, horizon=horizon)
+    worse = sc[(sc["crop"] != "all") & (sc["dm_stat"] > 0) & (sc["dm_p"] < MAX_P_VALUE)]
+    return {
+        str(r["crop"]): {"rel_pct": float(r["rel_improvement_pct"]), "dm_p": float(r["dm_p"])}
+        for r in worse.to_dict("records")
+    }
 
 
 def set_alias(client: MlflowClient, name: str, alias: str, version: str) -> None:

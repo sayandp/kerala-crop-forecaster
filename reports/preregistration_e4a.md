@@ -96,3 +96,21 @@ first shadow prediction):
   **1** (conservative), so it can never be "significant".
 - **DM minimum:** the DM test is computed only with ≥ 10 distinct matured target dates; this is
   far below the ≥ 12-week minimum evidence, so it never decides a verdict on its own.
+
+## Amendment 2 — 2026-10-09 (origin keying only; no test, threshold, window, feature or spec change)
+
+*Written when 36 shadow predictions existed (origin dates 2026-10-07 .. 2026-10-09, earliest target
+2026-10-14): **no outcome had matured**, so nothing observed could inform this change.*
+
+- **What changes:** a shadow prediction's origin (`shadow_predictions.forecast_date`) is the
+  **data as-of date** — the latest price date in the snapshot used — instead of the pipeline run
+  date. The target date stays origin + 7. A run whose as-of date is not newer than the newest
+  stored origin writes **no** shadow rows (no new price data, no new prediction). Rows remain
+  immutable (insert-only, never overwritten).
+- **Why:** GitHub starts the scheduled "evening" run 5–7 hours late, after midnight IST, so the run
+  date was the day *after* the prices it used; origins and targets were labelled one day late.
+- **What does not change:** the model spec and its hash (`18b80303494e1cc5`), the training series,
+  features, classes, threshold, horizon, losses, the class-balanced Diebold–Mariano tests, Holm
+  correction, precision bar and minimum-evidence rules, and the evaluation join (a prediction is
+  scored against the price on its target date). Existing rows are kept as they are; the evidence
+  window continues (no reset).

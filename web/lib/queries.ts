@@ -423,3 +423,22 @@ export async function cropDetail(key: SeriesKey): Promise<CropDetail> {
     forecasts,
   };
 }
+
+export interface BandCoverageRow {
+  model_name: string;
+  crop: string;
+  horizon: number;
+  value: number;
+}
+
+/** Back-test p10-p90 coverage per crop x horizon, raw and conformal-calibrated (latest run). */
+export async function bandCoverage(): Promise<BandCoverageRow[]> {
+  return rows<BandCoverageRow>(
+    (q) => q`SELECT DISTINCT ON (model_name, commodity, horizon)
+                    model_name, commodity AS crop, horizon, value::float8 AS value
+             FROM model_metrics
+             WHERE split = 'backtest' AND metric = 'coverage_80'
+               AND model_name IN ('band_raw', 'band_conformal')
+             ORDER BY model_name, commodity, horizon, computed_at DESC`,
+  );
+}

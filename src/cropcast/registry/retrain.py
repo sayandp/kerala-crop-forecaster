@@ -25,17 +25,23 @@ import mlflow
 from mlflow import MlflowClient
 from sqlalchemy import Engine
 
+from cropcast.bot.names import crop_of
 from cropcast.features.build import FEATURE_COLUMNS, TARGET
 from cropcast.features.series import SERIES_PATH, load_series
+from cropcast.models import calibration as cal
 from cropcast.models.backtest import metrics_table, run_backtest
 from cropcast.models.lgbm import LGBMForecaster
 from cropcast.models.move import MoveClassifier, move_rows, move_series, spec, spec_hash
 from cropcast.models.training import HORIZONS, prepare_features
 from cropcast.registry.promote import (
+    BAND_OFFSETS_TAG,
+    CROP_GUARD_FROM,
     MOVE_MODEL,
+    NAIVE_ROUTED_TAG,
     REGISTRY_EXPERIMENT,
     Decision,
     alias_version,
+    crop_guard,
     price_gate,
     price_model_name,
     record,
@@ -96,11 +102,21 @@ def retrain_and_register(engine: Engine, run_date: date, run_id: int | None) -> 
             bt = run_backtest({h: feats[h]}, snap.prices, snap.last_date).predictions
             m5 = metrics_table(bt, []).set_index("model")
             coverage = float(m5["coverage_80"].astype(float)["lgbm"])
+            # Per-crop split-conformal band offsets from the same out-of-sample forecasts
+            # (display only; applied in predict). The last ~70 days, all matured.
+            band_cal = cal.served_band(bt, crop_of)
+            band_q = cal.offsets(band_cal)
+            band_cal["lo_cal"], band_cal["hi_cal"] = cal.apply(
+                band_cal["lo"], band_cal["hi"], band_cal["crop"].map(band_q).fillna(0.0)
+            )
             common = {
                 "horizon": str(h),
                 "data_to": str(snap.last_date),
                 "band_coverage_80_5fold": f"{coverage:.1f}",
             }
+            common[BAND_OFFSETS_TAG] = json.dumps(
+                {k: round(v, 5) for k, v in sorted(band_q.items())}
+            )
             champ_v = _register(
                 client, name, PriceModel("naive"), band, {**common, "point": "naive"}
             )
@@ -131,10 +147,36 @@ def retrain_and_register(engine: Engine, run_date: date, run_id: int | None) -> 
             record(engine, decision, run_id)
             if decision.decision == "promote":
                 set_alias(client, name, "champion", chall_v)
+                if run_date >= CROP_GUARD_FROM:
+                    routed = crop_guard(diag, h)
+                    client.set_model_version_tag(
+                        name, chall_v, NAIVE_ROUTED_TAG, json.dumps(sorted(routed))
+                    )
+                    for crop, m in routed.items():
+                        record(
+                            engine,
+                            Decision(
+                                name,
+                                crop,
+                                "route naive",
+                                "per-crop guard (rule of 2026-10-09): LGBM worse than naive "
+                                f"for {crop} at h={h} on the 52-fold diagnostic "
+                                f"({m['rel_pct']:+.2f} %, DM p={m['dm_p']:.3g}) -> "
+                                "serve naive for this crop",
+                                challenger_version=chall_v,
+                                champion_version=chall_v,
+                                metrics=m,
+                            ),
+                            run_id,
+                        )
+                    client.log_metric(parent.info.run_id, f"h{h}_naive_routed_crops", len(routed))
             # Client API with an explicit run id: after log_model, MLflow 3's fluent API tags
             # metrics with the active LoggedModel's id, which DagsHub rejects (BAD_REQUEST).
             for key, value in {
                 f"h{h}_band_coverage_80": coverage,
+                f"h{h}_band_coverage_80_conformal_insample": cal.coverage(
+                    band_cal, "lo_cal", "hi_cal"
+                ),
                 f"h{h}_gate_rel_pct": decision.metrics["rel_improvement_pct"],
                 f"h{h}_gate_dm_p": decision.metrics["dm_p"],
             }.items():

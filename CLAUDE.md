@@ -184,6 +184,29 @@ Never hardcode secrets. Never commit `.env`. Read env only via `cropcast.config.
   do not edit it). Pass → alias `champion_<crop>` + admin ping. Up/down alerts additionally need
   `move_alerts_enabled: true` in `config/channel.yaml` (a human flips it).
 - Batch prediction **always** loads `models:/cropcast-price-h{h}@champion` / `cropcast-move-h7@challenger`.
+- **Forecast dating (2026-10-09):** `forecasts.forecast_date` and `shadow_predictions.forecast_date` are the
+  **data as-of date** (latest price date in the snapshot), target = as-of + h — not the run date. GitHub starts
+  the 14:17 UTC cron 5–7 h late (after midnight IST), so run-date keys labelled yesterday's prices as today's.
+  Rows stay immutable (insert-only); a run whose as-of date is not newer than the newest stored one writes
+  nothing (`predict` / `shadow` report `skipped`). Rows dated before the fix keep their run-date meaning.
+  Shadow: preregistration Amendment 2 (keying only; spec hash and evaluation unchanged, evidence not reset).
+- **First LightGBM promotion: 2026-10-09, `cropcast-price-h14` v4** (52-fold: +3.70 % vs naive, DM p = 7×10⁻⁵,
+  driven by the Phase 6b crops; coffee −4.8 %). Logged in `promotion_log`; kept by decision. h = 1 and h = 7
+  stay naive.
+- **Band calibration (2026-10-09, display only, no gate):** per-crop split-conformal (CQR in log1p) offsets of
+  the p10–p90 band, computed by the weekly retrain from its 5-fold out-of-sample forecasts (~70 days, all
+  matured), stored as tag `band_offsets` on the registered versions and applied in predict
+  (`models/calibration.py`). Evaluated on a 31-fold walk-forward (26 folds scored, 34,650 forecasts,
+  `scripts/band_calibration.py`, MLflow `band-calibration-*`): pooled coverage 79.7 % → 81.3 %, every crop
+  78.0–88.6 % (raw 73.7–89.4 %). Ship rule: pooled ≈ 80 % (± 2.5) and every crop within 70–90 %. Known: pepper
+  h = 1 stays ~93 % — its price is unchanged 89.5 % of days and the band always contains the point forecast,
+  so it cannot go lower. Per-crop coverage (raw → calibrated) is on the dashboard's accuracy page.
+- **Per-crop guard — rule change of 2026-10-09, effective from the first routine Sunday retrain on/after
+  2026-10-11 (not retroactive):** when the gate promotes LightGBM for a horizon, every crop (product key) for
+  which it is significantly worse than naive on the same 52-fold diagnostic (DM p < 0.05, challenger loss
+  higher) keeps the naive point forecast (`registry/promote.py::crop_guard`; tag `naive_routed` on the champion
+  version; one `promotion_log` row `route naive` per crop; forecasts' `model_version` = `<v>:naive`). The band
+  is unchanged (both champions share the LightGBM quantile band).
 - **Weekly retrain** (scheduled Sunday run, step `retrain`, ~10 min): refit band + challengers,
   register new versions, move `champion` to the refreshed naive version unless the gate promotes.
   Model logging uses the client API for metrics (MLflow 3 fluent metrics after `log_model` carry a

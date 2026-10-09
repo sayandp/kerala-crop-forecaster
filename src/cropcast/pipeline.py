@@ -421,9 +421,15 @@ def run_predict(ctx: RunContext) -> StepResult:
         ctx.run_id,
         ctx.dry_run,
     )
+    versions = sorted(set(out["model_version"].astype(str))) if len(out) else []
     return StepResult(
         "predict",
-        metrics={"rows": len(out), "versions": sorted(set(out["model_version"].astype(str)))},
+        metrics={
+            "rows": len(out),
+            "as_of": str(out.attrs.get("as_of")),
+            "skipped": out.attrs.get("skipped"),
+            "versions": versions,
+        },
     )
 
 
@@ -440,7 +446,12 @@ def run_shadow(ctx: RunContext) -> StepResult:
     )
     return StepResult(
         "shadow",
-        metrics={"rows": len(out), "classes": out["pred_class"].value_counts().to_dict()},
+        metrics={
+            "rows": len(out),
+            "as_of": str(out.attrs.get("as_of")),
+            "skipped": out.attrs.get("skipped"),
+            "classes": out["pred_class"].value_counts().to_dict() if len(out) else {},
+        },
     )
 
 

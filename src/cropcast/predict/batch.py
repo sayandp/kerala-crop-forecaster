@@ -5,12 +5,16 @@
 * shadow: `cropcast-move-h7@challenger` for the pre-registered crops -> shadow_predictions.
   Refuses to run unless reports/preregistration_e4a.md is committed (records its commit).
 
-Both are idempotent per forecast date: rows are INSERT ... ON CONFLICT DO NOTHING, so a
-re-run never changes a prediction that was already made (no peeking at later data).
+Both are keyed by the DATA AS-OF date (the latest price date in the snapshot), not the run
+date: GitHub starts the "evening" cron hours late, after midnight IST, so a run-date key labelled
+yesterday's prices as today's (fixed 2026-10-09; shadow: preregistration Amendment 2).
+Immutable: rows are INSERT ... ON CONFLICT DO NOTHING, and a run whose as-of date is not newer
+than the last stored one writes nothing (no new price data -> no new predictions).
 """
 
 from __future__ import annotations
 
+import json
 import logging
 import subprocess
 from datetime import date
@@ -26,13 +30,87 @@ from cropcast.db import _records_any
 from cropcast.features.build import build_features
 from cropcast.features.series import Series
 from cropcast.features.snapshot import Snapshot
+from cropcast.models import calibration as cal
 from cropcast.models.move import CLASSES, HORIZON, JUDGED_CROPS, spec_hash, trend_class
 from cropcast.models.training import HORIZONS
-from cropcast.registry.promote import MOVE_MODEL, alias_version, price_model_name
+from cropcast.registry.promote import (
+    BAND_OFFSETS_TAG,
+    MOVE_MODEL,
+    NAIVE_ROUTED_TAG,
+    alias_version,
+    price_model_name,
+)
 
 log = logging.getLogger(__name__)
 
 PREREG_PATH = "reports/preregistration_e4a.md"
+
+
+def data_asof(snap: Snapshot, run_date: date) -> date:
+    """Latest price date used (the snapshot is already cut at the run date)."""
+    return min(snap.last_date, run_date)
+
+
+def last_asof(engine: Engine, table: str) -> date | None:
+    """Newest as-of date already predicted (forecasts / shadow_predictions)."""
+    assert table in ("forecasts", "shadow_predictions")
+    with engine.connect() as conn:
+        value = conn.execute(text(f"SELECT max(forecast_date) FROM {table}")).scalar()
+    return value if isinstance(value, date) else None
+
+
+def _skip(engine: Engine, table: str, asof: date) -> date | None:
+    """The stored as-of date if `asof` is not newer (nothing new to predict), else None."""
+    last = last_asof(engine, table)
+    if last is not None and asof <= last:
+        log.info(
+            "no new price data: skipping",
+            extra={"table": table, "as_of": str(asof), "last": str(last)},
+        )
+        return last
+    return None
+
+
+def route_naive(rows: pd.DataFrame, pred: pd.DataFrame, crops: set[str]) -> pd.Series:
+    """Per-crop guard: rows of `crops` get the naive point (last price) and the same band.
+
+    The band does not depend on the point forecast (both champions share the LGBM quantile
+    band around log1p(last price)); only the clamp keeps p50 inside it. Returns the mask."""
+    from cropcast.bot.names import crop_of
+
+    mask = pd.Series(
+        [
+            crop_of(str(c), str(m), str(v)) in crops
+            for c, m, v in zip(rows["commodity"], rows["market"], rows["variety"], strict=True)
+        ],
+        index=rows.index,
+    )
+    if mask.any():
+        last = rows.loc[mask, "last_value"].astype(float)
+        pred.loc[mask, "p50"] = last
+        pred.loc[mask, "p10"] = pred.loc[mask, "p10"].clip(upper=last)
+        pred.loc[mask, "p90"] = pred.loc[mask, "p90"].clip(lower=last)
+    return mask
+
+
+def calibrate_band(rows: pd.DataFrame, pred: pd.DataFrame, offsets: dict[str, float]) -> None:
+    """Per-crop split-conformal widening / narrowing of the p10-p90 band (in place)."""
+    if not offsets:
+        return
+    from cropcast.bot.names import crop_of
+
+    q = pd.Series(
+        [
+            offsets.get(crop_of(str(c), str(m), str(v)), 0.0)
+            for c, m, v in zip(rows["commodity"], rows["market"], rows["variety"], strict=True)
+        ],
+        index=pred.index,
+        dtype=float,
+    )
+    on = q != 0
+    if on.any():
+        lo, hi = cal.apply(pred.loc[on, "p10"], pred.loc[on, "p90"], q[on], pred.loc[on, "p50"])
+        pred.loc[on, "p10"], pred.loc[on, "p90"] = lo, hi
 
 
 def origin_rows(snap: Snapshot, series: list[Series], run_date: date, horizon: int) -> pd.DataFrame:
@@ -56,12 +134,21 @@ def predict_prices(
     run_id: int | None,
     dry_run: bool = False,
 ) -> pd.DataFrame:
+    asof = data_asof(snap, run_date)
+    if (last := _skip(engine, "forecasts", asof)) is not None:
+        empty = pd.DataFrame()
+        empty.attrs.update(as_of=asof, skipped=f"no new price data since as-of {last}")
+        return empty
     frames = []
     for h in HORIZONS:
         name = price_model_name(h)
         model, version = _load(name, "champion")
-        rows = origin_rows(snap, series, run_date, h)
-        pred = model.predict(rows)
+        rows = origin_rows(snap, series, asof, h)
+        pred = model.predict(rows).copy()
+        tags = MlflowClient().get_model_version(name, version).tags or {}
+        routed = set(json.loads(tags.get(NAIVE_ROUTED_TAG, "[]")))
+        naive_rows = route_naive(rows, pred, routed)
+        calibrate_band(rows, pred, json.loads(tags.get(BAND_OFFSETS_TAG, "{}")))
         frames.append(
             rows[["commodity", "market", "variety", "origin_date", "target_date", "last_value"]]
             .astype({"commodity": str, "market": str, "variety": str})
@@ -71,7 +158,7 @@ def predict_prices(
                 p50=pred["p50"].round(2),
                 p90=pred["p90"].round(2),
                 model_name=name,
-                model_version=version,
+                model_version=[f"{version}:naive" if n else version for n in naive_rows],
                 run_id=run_id,
             )
             .rename(columns={"origin_date": "forecast_date"})
@@ -102,6 +189,7 @@ def predict_prices(
                 ),
                 _records_any(out, cols),
             )
+    out.attrs.update(as_of=asof, skipped=None)
     return out
 
 
@@ -144,7 +232,12 @@ def predict_shadow(
             f"{MOVE_MODEL} v{version} spec {tags.get('spec_hash')} != code spec {current}: "
             "retrain before making shadow predictions"
         )
-    rows = origin_rows(snap, series, run_date, HORIZON)
+    asof = data_asof(snap, run_date)
+    if (last := _skip(engine, "shadow_predictions", asof)) is not None:
+        empty = pd.DataFrame(columns=["pred_class"])
+        empty.attrs.update(as_of=asof, skipped=f"no new price data since as-of {last}")
+        return empty
+    rows = origin_rows(snap, series, asof, HORIZON)
     rows = rows[rows["commodity"].astype(str).isin(JUDGED_CROPS)].reset_index(drop=True)
     pred = model.predict(rows)
     out = (
@@ -190,4 +283,5 @@ def predict_shadow(
                 ),
                 _records_any(out, cols),
             )
+    out.attrs.update(as_of=asof, skipped=None)
     return out
