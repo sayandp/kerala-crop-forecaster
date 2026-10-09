@@ -28,6 +28,7 @@ import pandas as pd
 from sqlalchemy import text
 
 from cropcast import db
+from cropcast.archive import upload_release, verify_release, write_parquet
 from cropcast.config import settings
 from cropcast.ingest.agmarknet import (
     fetch_portal_month,
@@ -66,14 +67,42 @@ def _save_state(state: dict[str, Any]) -> None:
 
 
 ARCHIVE_CUTOFF: date | None = None  # set in main(): rows before it live in GitHub Releases
+# --archive-history: validated rows before the cutoff are collected here and published as an
+# extra verified archive release (new crops' history) instead of being dropped.
+ARCHIVE_HISTORY: list[pd.DataFrame] | None = None
+ARCHIVE_COLUMNS = [
+    "date",
+    "state",
+    "district",
+    "market",
+    "commodity",
+    "variety",
+    "min_price",
+    "max_price",
+    "modal_price",
+    "arrivals_tonnes",
+    "source",
+    "ingested_at",
+    "updated_at",
+]
 
 
 def load_batch(raw: pd.DataFrame, run_id: int | None, dry_run: bool) -> dict[str, int]:
     """normalize -> validate -> quarantine -> upsert. Raises RejectRateExceeded."""
     prices = normalize(raw)
+    old = pd.Series(False, index=prices.index)
     if ARCHIVE_CUTOFF is not None:
         # Never re-insert archived dates into prices_raw (they would bloat the free-tier DB).
-        prices = prices[pd.to_datetime(prices["date"]) >= pd.Timestamp(ARCHIVE_CUTOFF)]
+        old = pd.to_datetime(prices["date"]) < pd.Timestamp(ARCHIVE_CUTOFF)
+        if ARCHIVE_HISTORY is not None and old.any():
+            good_old, rejected_old = validate(prices[old])
+            check_reject_rate(int(old.sum()), len(rejected_old))
+            ARCHIVE_HISTORY.append(good_old)
+            if not dry_run:
+                db.insert_rejected(rejected_old, run_id)
+        prices = prices[~old]
+    if prices.empty:  # e.g. a month entirely before the archive cutoff
+        return {"raw": len(raw), "target": 0, "good": 0, "rejected": 0}
     good, rejected = validate(prices)
     if not dry_run:
         db.insert_rejected(rejected, run_id)
@@ -188,6 +217,38 @@ def backfill_file(
     return totals, failures
 
 
+def publish_history(tag: str, dry_run: bool) -> int:
+    """Pre-cutoff rows -> yearly parquet -> GitHub release -> download-and-verify -> archive_log.
+
+    `clean --full` reads every release in archive_log, so the history lands in prices_clean
+    without ever entering prices_raw (Neon free tier)."""
+    assert ARCHIVE_HISTORY is not None and ARCHIVE_CUTOFF is not None
+    if not ARCHIVE_HISTORY:
+        return 0
+    rows = pd.concat(ARCHIVE_HISTORY, ignore_index=True).drop_duplicates(
+        subset=["date", "market", "commodity", "variety"], keep="last"
+    )
+    now = pd.Timestamp.now(tz="UTC")
+    rows = rows.assign(ingested_at=now, updated_at=now).reindex(columns=ARCHIVE_COLUMNS)
+    rows["date"] = pd.to_datetime(rows["date"]).dt.date
+    if dry_run:
+        log.info("archive history (dry run)", extra={"tag": tag, "rows": len(rows)})
+        return len(rows)
+    files = write_parquet(rows, tag)
+    upload_release(tag, files, ARCHIVE_CUTOFF, len(rows))
+    verify_release(tag, rows)
+    with db.get_engine().begin() as conn:
+        conn.execute(
+            text(
+                "INSERT INTO archive_log (release_tag, cutoff_date, rows, table_name) "
+                "VALUES (:t, :c, :r, 'prices_raw')"
+            ),
+            {"t": tag, "c": ARCHIVE_CUTOFF, "r": len(rows)},
+        )
+    log.info("archive history published", extra={"tag": tag, "rows": len(rows)})
+    return len(rows)
+
+
 def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(description="Backfill historical Kerala prices into prices_raw")
     p.add_argument("--start", default="2018-01", help="first month YYYY-MM")
@@ -197,11 +258,19 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--weather", action="store_true", help="also backfill weather_daily")
     p.add_argument("--force", action="store_true", help="ignore checkpoints, re-load all months")
     p.add_argument("--dry-run", action="store_true", help="fetch + validate, no DB writes")
+    p.add_argument(
+        "--archive-history",
+        metavar="TAG",
+        help="publish rows before the archive cutoff as an extra verified release TAG "
+        "(new crops' history) instead of dropping them",
+    )
     args = p.parse_args(argv)
 
     setup_logging(log_file=settings.logs_dir / f"backfill_{today_ist().isoformat()}.jsonl")
     run_id = None
-    global ARCHIVE_CUTOFF
+    global ARCHIVE_CUTOFF, ARCHIVE_HISTORY
+    if args.archive_history:
+        ARCHIVE_HISTORY = []
     if not args.dry_run:
         db.init_db()
         with db.get_engine().connect() as conn:
@@ -238,6 +307,9 @@ def main(argv: list[str] | None = None) -> int:
         if run_id is not None:
             db.finish_run(run_id, "failed", error=repr(exc))
         return 1
+
+    if ARCHIVE_HISTORY is not None and ARCHIVE_CUTOFF is not None and not failures:
+        totals["archived_history_rows"] = publish_history(args.archive_history, args.dry_run)
 
     log.info("backfill finished", extra={**totals, "failures": len(failures)})
     for f in failures:

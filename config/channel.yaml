@@ -1,22 +1,24 @@
 # Telegram Stage 1: one public channel, one post per day (all crops).
-# Markets shown per crop (must be series in config/series.yaml). 1-3 per crop.
+# ONE market per crop (Phase 6b: keep the post short), in dashboard order: cash crops, bananas,
+# vegetables. Must be series of config/series.yaml; `commodity:` when the key is a product key.
 crops:
-  banana:
-    - {market: Kayamkulam, variety: Nendran}
-    - {market: Parassala, variety: Nendran}
-    - {market: Chenkal VFPCK, variety: Nendran}
-  coconut:
-    - {market: Koduvayoor, variety: Big}
-    - {market: Palakkad, variety: Coconut}
-  pepper:
-    - {market: Kannur, variety: Other}
-    - {market: Manjeswaram, variety: Garbled Other}
-  rubber:
-    - {market: Kalpetta, variety: RSS-4}
-    - {market: Pulpally, variety: Other}
-  tapioca:
-    - {market: Payyannur, variety: Other}
-    - {market: Perumbavoor, variety: Tapioca}
+  coconut:      [{market: Koduvayoor, variety: Big}]
+  pepper:       [{market: Kannur, variety: Other}]
+  rubber:       [{market: Kalpetta, variety: RSS-4}]
+  arecanut:     [{market: Manjeswaram, variety: Other}]
+  coffee:       [{market: Kalpetta, variety: Other}]
+  ginger:       [{market: Kayamkulam, variety: Other}]
+  banana:       [{market: Kayamkulam, variety: Nendran}]
+  palayankodan: [{market: Kayamkulam, variety: Palayamthodan, commodity: banana}]
+  poovan:       [{market: Palakkad, variety: Poovan, commodity: banana}]
+  tapioca:      [{market: Payyannur, variety: Other}]
+  tomato:       [{market: Kayamkulam, variety: Other}]
+  onion:        [{market: Kayamkulam, variety: Big}]
+  small_onion:  [{market: Kayamkulam, variety: Small, commodity: onion}]
+  green_chilli: [{market: Kayamkulam, variety: Other}]
+  bitter_gourd: [{market: Manjeswaram, variety: Bitter Gourd}]
+  drumstick:    [{market: Kayamkulam, variety: Other}]
+  cucumber:     [{market: Payyannur, variety: Other}]
 
 # Up/down move alerts ("likely to rise > 3 % this week", bot digests) per crop. Default OFF.
 # Turning one on is honoured ONLY if that crop's newest live verdict in promotion_log is "pass"

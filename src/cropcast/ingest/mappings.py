@@ -42,7 +42,37 @@ COMMODITY_MAP: dict[str, CommodityMap] = {
     "pepper garbled": CommodityMap("pepper", "Garbled "),
     "pepper ungarbled": CommodityMap("pepper", "Ungarbled "),
     "tapioca": CommodityMap("tapioca"),
+    # Phase 6b crops: only the markets listed in config/series.yaml are kept (see below).
+    "arecanut(betelnut/supari)": CommodityMap("arecanut"),
+    "arecanut": CommodityMap("arecanut"),
+    "coffee": CommodityMap("coffee"),
+    "ginger(green)": CommodityMap("ginger"),
+    "tomato": CommodityMap("tomato"),
+    "onion": CommodityMap("onion"),
+    "green chilli": CommodityMap("green_chilli"),
+    "bitter gourd": CommodityMap("bitter_gourd"),
+    "drumstick": CommodityMap("drumstick"),
+    "cucumbar(kheera)": CommodityMap("cucumber"),
+    "cucumber": CommodityMap("cucumber"),
 }
+
+# The original five crops are stored for every Kerala market. For the Phase 6b crops only the
+# selected series' markets are stored (Neon free tier: +5 MB instead of +155 MB).
+ALL_MARKET_COMMODITIES = frozenset({"banana", "coconut", "pepper", "rubber", "tapioca"})
+
+
+@lru_cache(maxsize=1)
+def selected_markets() -> frozenset[tuple[str, str]]:
+    """(commodity, market) pairs of config/series.yaml for the selected-markets-only crops."""
+    from cropcast.config import settings
+
+    data = yaml.safe_load((settings.config_dir / "series.yaml").read_text(encoding="utf-8"))
+    return frozenset(
+        (str(s["commodity"]), str(s["market"]))
+        for s in data["series"]
+        if str(s["commodity"]) not in ALL_MARKET_COMMODITIES
+    )
+
 
 # Casefolded raw variety -> canonical variety.
 VARIETY_MAP: dict[str, str] = {
@@ -196,6 +226,18 @@ def normalize(df: pd.DataFrame) -> pd.DataFrame:
     ]
     out["market"] = out["market"].map(canonical_market)
     out["state"] = out["state"].map(canonical_state)
+
+    # Phase 6b crops: keep only the selected markets (all their varieties, so a relabel at the
+    # portal can still be aliased in the clean layer).
+    selected = out["commodity"].isin(ALL_MARKET_COMMODITIES) | pd.Series(
+        list(zip(out["commodity"], out["market"], strict=True)), index=out.index
+    ).isin(selected_markets())
+    if (~selected).any():
+        log.info(
+            "dropping unselected markets of selected-only crops",
+            extra={"rows": int((~selected).sum())},
+        )
+    out = out.loc[selected].copy()
 
     districts = out["district"].map(canonical_district) if "district" in out else None
     lookup = out["market"].map(market_districts())

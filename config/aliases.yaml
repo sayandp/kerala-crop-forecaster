@@ -3,21 +3,76 @@
 # to fuzzy matching (difflib). The FIRST Malayalam name of each entry is the display name.
 # Markets must be markets of config/series.yaml (the served series).
 crops:
-  banana:
-    ml: [നേന്ത്രക്കായ, നേന്ത്രൻ, നേന്ത്രപ്പഴം, ഏത്തക്ക, ഏത്തയ്ക്ക, ഏത്തപ്പഴം, ഏത്തവാഴ, വാഴക്കുല, കായ, പഴം]
-    en: [banana, nendran, nenthran, nendra, ethakka, ethakka banana, ethapazham, plantain, kaya, pazham]
+  # Product keys (config/series.yaml `crop:`, defaults to the commodity). Order = button order,
+  # grouped as on the dashboard: cash crops, bananas, vegetables. `name_en` = English display.
   coconut:
+    name_en: Coconut
     ml: [തേങ്ങ, നാളികേരം, തെങ്ങ്, നാളികേര]
     en: [coconut, coconuts, thenga, nalikeram]
   pepper:
+    name_en: Black pepper
     ml: [കുരുമുളക്, കുരുമുളക്ക്]
     en: [pepper, black pepper, blackpepper, kurumulaku, kurumulak, kurumulagu, milagu]
   rubber:
+    name_en: Rubber
     ml: [റബ്ബർ, റബർ, റബ്ബര്, ഷീറ്റ്]
     en: [rubber, rss4, rss-4, rss 4, sheet rubber]
+  arecanut:
+    name_en: Arecanut
+    ml: [അടയ്ക്ക, പാക്ക്, അടക്ക, കവുങ്ങ്]
+    en: [arecanut, areca, areca nut, supari, adakka, betelnut, betel nut]
+  coffee:
+    name_en: Coffee
+    ml: [കാപ്പി, കാപ്പിക്കുരു]
+    en: [coffee, kaapi, kappi]
+  ginger:
+    name_en: Ginger
+    ml: [ഇഞ്ചി, പച്ച ഇഞ്ചി]
+    en: [ginger, green ginger, inji]
+  banana:
+    name_en: Nendran banana
+    ml: [നേന്ത്രക്കായ, നേന്ത്രൻ, നേന്ത്രപ്പഴം, ഏത്തക്ക, ഏത്തയ്ക്ക, ഏത്തപ്പഴം, ഏത്തവാഴ, വാഴക്കുല, കായ]
+    en: [banana, nendran, nenthran, nendra, ethakka, ethakka banana, ethapazham, plantain, kaya]
+  palayankodan:
+    name_en: Palayankodan banana
+    ml: [പാളയങ്കോടൻ, പാളയംകോടൻ, പാളയൻകോടൻ]
+    en: [palayankodan, palayamkodan, palayamthodan, palayankodan banana]
+  poovan:
+    name_en: Poovan banana
+    ml: [പൂവൻ, പൂവൻ പഴം]
+    en: [poovan, poovan banana, poovan pazham]
   tapioca:
+    name_en: Tapioca
     ml: [കപ്പ, മരച്ചീനി, കൊള്ളി, പൂള]
     en: [tapioca, kappa, cassava, maracheeni, kolli, poola]
+  tomato:
+    name_en: Tomato
+    ml: [തക്കാളി]
+    en: [tomato, tomatoes, thakkali]
+  onion:
+    name_en: Onion
+    ml: [സവാള, വലിയ ഉള്ളി, ഉള്ളി]
+    en: [onion, big onion, savala, bellary onion]
+  small_onion:
+    name_en: Small onion
+    ml: [ചെറിയ ഉള്ളി, ചുവന്നുള്ളി, ചുവന്ന ഉള്ളി, കുഞ്ഞുള്ളി]
+    en: [small onion, shallot, shallots, sambar onion, cheriya ulli, kunjulli]
+  green_chilli:
+    name_en: Green chilli
+    ml: [പച്ചമുളക്, പച്ച മുളക്]
+    en: [green chilli, green chili, chilli, chili, pachamulaku]
+  bitter_gourd:
+    name_en: Bitter gourd
+    ml: [പാവയ്ക്ക, പാവക്ക, കയ്പക്ക]
+    en: [bitter gourd, bittergourd, karela, pavakka, pavaykka]
+  drumstick:
+    name_en: Drumstick
+    ml: [മുരിങ്ങക്കായ, മുരിങ്ങ, മുരിങ്ങയ്ക്ക]
+    en: [drumstick, drumsticks, moringa, muringakka]
+  cucumber:
+    name_en: Cucumber
+    ml: [വെള്ളരി, വെള്ളരിക്ക]
+    en: [cucumber, vellari, vellarikka]
 
 markets:
   Kayamkulam:          {ml: [കായംകുളം], en: [kayamkulam]}

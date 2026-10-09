@@ -57,12 +57,14 @@ def test_green_and_ripe_banana_never_share_a_key() -> None:
 def test_unmapped_commodities_are_logged_not_silently_dropped(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    df = pd.DataFrame([_raw("Banana", "Poovan"), _raw("Onion", "Big"), _raw("Onion", "Small")])
+    df = pd.DataFrame(
+        [_raw("Banana", "Poovan"), _raw("Cardamom", "Bold"), _raw("Cardamom", "Small")]
+    )
     with caplog.at_level(logging.INFO, logger="cropcast.ingest.mappings"):
         out = normalize(df)
     assert list(out["commodity"]) == ["banana"]
     rec = next(r for r in caplog.records if r.getMessage() == "dropping unmapped commodities")
-    assert rec.unmapped == {"Onion": 2}  # type: ignore[attr-defined]
+    assert rec.unmapped == {"Cardamom": 2}  # type: ignore[attr-defined]
 
 
 @pytest.mark.parametrize(

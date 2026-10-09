@@ -57,6 +57,16 @@ class Settings(BaseSettings):
             "Pepper garbled": 93,
             "Pepper ungarbled": 94,
             "Tapioca": 85,
+            # Phase 6b (selected markets only, see config/series.yaml)
+            "Arecanut(Betelnut/Supari)": 118,
+            "Coffee": 41,
+            "Ginger(Green)": 87,
+            "Tomato": 65,
+            "Onion": 23,
+            "Green Chilli": 73,
+            "Bitter gourd": 67,
+            "Drumstick": 140,
+            "Cucumbar(Kheera)": 131,
         }
     )
 
@@ -86,7 +96,23 @@ class Settings(BaseSettings):
     # --- Domain ---
     state: str = "Kerala"
     target_commodities: list[str] = Field(
-        default_factory=lambda: ["banana", "coconut", "rubber", "pepper", "tapioca"]
+        default_factory=lambda: [
+            "banana",
+            "coconut",
+            "rubber",
+            "pepper",
+            "tapioca",
+            # Phase 6b (selected markets only)
+            "arecanut",
+            "coffee",
+            "ginger",
+            "tomato",
+            "onion",
+            "green_chilli",
+            "bitter_gourd",
+            "drumstick",
+            "cucumber",
+        ]
     )
 
     # --- HTTP politeness ---
