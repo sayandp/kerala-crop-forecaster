@@ -98,8 +98,12 @@ export async function CropPage({ lang, crop, market }: { lang: Lang; crop: strin
         <span className="grid h-12 w-12 place-items-center rounded-[16px] bg-accent-soft text-accent">
           <CropIcon crop={crop as Crop} />
         </span>
-        <div className="min-w-0 flex-1">
-          <h1 className="text-[28px] leading-tight font-bold tracking-tight md:text-[34px]">{name}</h1>
+        {/* phones: the name gets its own row and the market button wraps below it, so a long
+            Malayalam word never runs under the button */}
+        <div className="min-w-0 flex-1 basis-[calc(100%-3.75rem)] sm:basis-0">
+          <h1 className="text-[28px] leading-tight font-bold tracking-tight [overflow-wrap:anywhere] md:text-[34px]">
+            {name}
+          </h1>
           <p className="text-[15px] text-ink-2">
             {c.market}: <span className="font-semibold text-ink">{mName}</span>
           </p>
