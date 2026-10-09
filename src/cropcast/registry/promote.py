@@ -81,6 +81,9 @@ def price_gate(
 # diagnostic (DM p < 0.05, challenger loss higher) keeps the naive point forecast.
 CROP_GUARD_FROM = date(2026, 10, 11)
 NAIVE_ROUTED_TAG = "naive_routed"
+# Per-crop split-conformal offsets of the p10-p90 band (log1p units), set by the weekly retrain
+# (rule of 2026-10-09; display only, no gate). See cropcast.models.calibration.
+BAND_OFFSETS_TAG = "band_offsets"
 
 
 def crop_guard(

@@ -30,9 +30,11 @@ from cropcast.db import _records_any
 from cropcast.features.build import build_features
 from cropcast.features.series import Series
 from cropcast.features.snapshot import Snapshot
+from cropcast.models import calibration as cal
 from cropcast.models.move import CLASSES, HORIZON, JUDGED_CROPS, spec_hash, trend_class
 from cropcast.models.training import HORIZONS
 from cropcast.registry.promote import (
+    BAND_OFFSETS_TAG,
     MOVE_MODEL,
     NAIVE_ROUTED_TAG,
     alias_version,
@@ -91,6 +93,26 @@ def route_naive(rows: pd.DataFrame, pred: pd.DataFrame, crops: set[str]) -> pd.S
     return mask
 
 
+def calibrate_band(rows: pd.DataFrame, pred: pd.DataFrame, offsets: dict[str, float]) -> None:
+    """Per-crop split-conformal widening / narrowing of the p10-p90 band (in place)."""
+    if not offsets:
+        return
+    from cropcast.bot.names import crop_of
+
+    q = pd.Series(
+        [
+            offsets.get(crop_of(str(c), str(m), str(v)), 0.0)
+            for c, m, v in zip(rows["commodity"], rows["market"], rows["variety"], strict=True)
+        ],
+        index=pred.index,
+        dtype=float,
+    )
+    on = q != 0
+    if on.any():
+        lo, hi = cal.apply(pred.loc[on, "p10"], pred.loc[on, "p90"], q[on], pred.loc[on, "p50"])
+        pred.loc[on, "p10"], pred.loc[on, "p90"] = lo, hi
+
+
 def origin_rows(snap: Snapshot, series: list[Series], run_date: date, horizon: int) -> pd.DataFrame:
     """Feature rows whose origin is the run date (one per live series)."""
     f = build_features(snap.prices, snap.weather, run_date, horizon, series)
@@ -126,6 +148,7 @@ def predict_prices(
         tags = MlflowClient().get_model_version(name, version).tags or {}
         routed = set(json.loads(tags.get(NAIVE_ROUTED_TAG, "[]")))
         naive_rows = route_naive(rows, pred, routed)
+        calibrate_band(rows, pred, json.loads(tags.get(BAND_OFFSETS_TAG, "{}")))
         frames.append(
             rows[["commodity", "market", "variety", "origin_date", "target_date", "last_value"]]
             .astype({"commodity": str, "market": str, "variety": str})
