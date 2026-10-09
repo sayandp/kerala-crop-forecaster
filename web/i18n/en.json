@@ -1,6 +1,6 @@
 {
   "site": {
-    "title": "Kerala crop prices",
+    "title": "Kerala market prices",
     "tagline": "Daily mandi prices and the price expected in 7 days for banana, coconut, pepper, rubber and tapioca."
   },
   "nav": {
@@ -10,14 +10,21 @@
     "challenger": "Challenger",
     "drift": "Drift",
     "health": "Health",
-    "lang": "മലയാളം"
+    "lang": "മലയാളം",
+    "home": "Home",
+    "crops": "Crops",
+    "alerts": "Alerts",
+    "how": "How it works",
+    "skip": "Skip to content"
   },
   "crops": {
     "banana": "Nendran banana",
     "coconut": "Coconut",
     "pepper": "Black pepper",
     "rubber": "Rubber",
-    "tapioca": "Tapioca"
+    "tapioca": "Tapioca",
+    "title": "Crops",
+    "lead": "Pick a crop to see every market, the price history and whether today's price is high."
   },
   "prices": {
     "pick": "Crop and market",
@@ -106,5 +113,80 @@
     "noData": "No data yet.",
     "repo": "Source code",
     "updated": "Updated hourly"
+  },
+  "home": {
+    "title": "Today's crop prices",
+    "lead": "Wholesale (mandi) prices in Kerala, updated every evening.",
+    "vs7": "vs 7 days ago",
+    "best": "Best market today",
+    "updated": "Price from",
+    "open": "See markets and history",
+    "install": "Add to home screen",
+    "installIos": "To install: tap Share, then “Add to Home Screen”.",
+    "noData": "Prices appear after the evening update."
+  },
+  "crop": {
+    "today": "Today at {market}",
+    "range7": "Expected in 7 days",
+    "rangeNote": "A range, not a guarantee: about 8 times in 10 the price lands inside it.",
+    "market": "Market",
+    "changeMarket": "Change market",
+    "pickMarket": "Choose a market",
+    "close": "Close",
+    "history": "Price history",
+    "r90": "90 days",
+    "r1y": "1 year",
+    "r5y": "5 years",
+    "band": "Expected range",
+    "price": "Price (₹/kg)",
+    "high": "Is this price high?",
+    "highLead": "Weekly average at {market}: this year, last year and the 5-year average.",
+    "thisYear": "This year",
+    "lastYear": "Last year",
+    "avg5": "5-year average",
+    "percentile": "Higher than {pct}% of {month} prices since {year}",
+    "percentileLow": "Lower than {pct}% of {month} prices since {year}",
+    "markets": "Compare markets",
+    "colMarket": "Market",
+    "colPrice": "Price ₹/kg",
+    "colChange": "7-day change",
+    "colDate": "Date",
+    "colRange": "In 7 days",
+    "sortBy": "Sort by {col}",
+    "stale": "old",
+    "map": "Prices across Kerala",
+    "mapLead": "Latest price per district (median of its markets). Grey: no market for this crop.",
+    "mapNone": "No market",
+    "alert": "Set a price alert",
+    "alertLead": "Get a Telegram message when the price crosses your level.",
+    "share": "Share on WhatsApp",
+    "shareText": "{crop} at {market}: ₹{price}/kg ({date}). Expected in 7 days ₹{lo}–{hi}. Not a guarantee.",
+    "table": "Show as table",
+    "week": "Week"
+  },
+  "alertsPage": {
+    "title": "Price alerts",
+    "lead": "Our Telegram bot @keralacropprices_bot sends you a message when a real market price crosses the level you choose. One message per crossing, never daily spam. It also sends a daily price message if you subscribe.",
+    "open": "Open the bot",
+    "pick": "Start an alert for a market",
+    "privacy": "The bot stores only your chat id, language and alerts — no name or phone number. /deletedata erases everything.",
+    "channel": "Or follow the daily channel"
+  },
+  "how": {
+    "title": "How it works",
+    "lead": "Every evening the prices are collected from Agmarknet, checked, and the next week's range is computed. Our forecast for the price level is the honest one — today's price — because no model beat it in two years of tests. Here is the evidence.",
+    "accuracy": "Live accuracy against the simplest forecast",
+    "models": "Every model decision with its evidence",
+    "challenger": "The pre-registered shadow test",
+    "drift": "Weekly data-drift checks",
+    "health": "Pipeline runs, database size, users"
+  },
+  "offline": {
+    "title": "You are offline",
+    "lead": "Pages you opened before are still available. Prices update when you are back online.",
+    "retry": "Try again"
+  },
+  "share": {
+    "telegram": "Telegram"
   }
 }

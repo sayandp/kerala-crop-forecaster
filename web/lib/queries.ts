@@ -266,3 +266,157 @@ export async function botUsageDaily(): Promise<BotDay[]> {
              FROM bot_usage_daily ORDER BY day`,
   );
 }
+
+// --- Phase 6: farmer-first pages ---------------------------------------------------------------
+
+export interface LatestRow extends SeriesKey {
+  as_of: string;
+  target: string;
+  p10: number;
+  p90: number;
+  d: string | null;
+  p: number | null;
+  p7: number | null;
+}
+
+/**
+ * Every served series (latest forecast run): latest observed price, the price about a week
+ * earlier (latest on or before date-7, within 14 days) and the 7-day forecast range.
+ * PK-indexed lateral lookups over ~20 series: well under 1 s.
+ */
+export async function latestAll(): Promise<LatestRow[]> {
+  return rows<LatestRow>(
+    (q) => q`WITH s AS (
+               SELECT commodity, market, variety, forecast_date, target_date, p10, p90
+               FROM forecasts
+               WHERE horizon = 7 AND forecast_date = (SELECT max(forecast_date) FROM forecasts))
+             SELECT s.commodity, s.market, s.variety,
+                    to_char(s.forecast_date, 'YYYY-MM-DD') AS as_of,
+                    to_char(s.target_date, 'YYYY-MM-DD') AS target,
+                    s.p10::float8 AS p10, s.p90::float8 AS p90,
+                    to_char(l.date, 'YYYY-MM-DD') AS d, l.modal_price::float8 AS p,
+                    w.modal_price::float8 AS p7
+             FROM s
+             LEFT JOIN LATERAL (
+               SELECT date, modal_price FROM prices_clean c
+               WHERE c.commodity = s.commodity AND c.market = s.market AND c.variety = s.variety
+               ORDER BY date DESC LIMIT 1) l ON TRUE
+             LEFT JOIN LATERAL (
+               SELECT modal_price FROM prices_clean c
+               WHERE c.commodity = s.commodity AND c.market = s.market AND c.variety = s.variety
+                 AND c.date <= l.date - 7 AND c.date >= l.date - 14
+               ORDER BY date DESC LIMIT 1) w ON TRUE
+             ORDER BY s.commodity, s.market`,
+  );
+}
+
+export interface SparkRow {
+  commodity: string;
+  d: string;
+  p: number;
+}
+
+/** Last 90 days of the given series (one per crop) for the home-card sparklines. */
+export async function sparklines(series: SeriesKey[]): Promise<SparkRow[]> {
+  if (series.length === 0) return [];
+  const c = series.map((s) => s.commodity);
+  const m = series.map((s) => s.market);
+  const v = series.map((s) => s.variety);
+  return rows<SparkRow>(
+    (q) => q`SELECT s.c AS commodity, to_char(p.date, 'YYYY-MM-DD') AS d,
+                    p.modal_price::float8 AS p
+             FROM unnest(${c}::text[], ${m}::text[], ${v}::text[]) AS s(c, m, v)
+             JOIN LATERAL (
+               SELECT date, modal_price FROM prices_clean x
+               WHERE x.commodity = s.c AND x.market = s.m AND x.variety = s.v
+                 AND x.date > (SELECT max(date) FROM prices_clean y
+                               WHERE y.commodity = s.c AND y.market = s.m
+                                 AND y.variety = s.v) - 90) p ON TRUE
+             ORDER BY 1, 2`,
+  );
+}
+
+export interface SeasonalRow {
+  y: number;
+  w: number;
+  p: number;
+}
+
+export interface Percentile {
+  share: number | null;
+  since: number | null;
+  month: number | null;
+}
+
+export interface CropDetail {
+  daily: PricePoint[]; // last 365 days
+  weekly: PricePoint[]; // last 5 years, weekly mean (the 5-year view)
+  seasonal: SeasonalRow[];
+  percentile: Percentile;
+  forecasts: ForecastRow[];
+}
+
+/** One series: history, seasonal weekly means, month percentile and the latest forecasts. */
+export async function cropDetail(key: SeriesKey): Promise<CropDetail> {
+  const { commodity: c, market: m, variety: v } = key;
+  const [daily, weekly, seasonal, pct, forecasts] = await Promise.all([
+    rows<PricePoint>(
+      (q) => q`SELECT to_char(date, 'YYYY-MM-DD') AS d, modal_price::float8 AS p
+               FROM prices_clean
+               WHERE commodity = ${c} AND market = ${m} AND variety = ${v}
+                 AND date > (SELECT max(date) FROM prices_clean
+                             WHERE commodity = ${c} AND market = ${m} AND variety = ${v}) - 365
+               ORDER BY date`,
+    ),
+    rows<PricePoint>(
+      (q) => q`SELECT to_char(date_trunc('week', date), 'YYYY-MM-DD') AS d,
+                      avg(modal_price)::float8 AS p
+               FROM prices_clean
+               WHERE commodity = ${c} AND market = ${m} AND variety = ${v}
+                 AND date > (SELECT max(date) FROM prices_clean
+                             WHERE commodity = ${c} AND market = ${m} AND variety = ${v}) - 1827
+               GROUP BY 1 ORDER BY 1`,
+    ),
+    rows<SeasonalRow>(
+      (q) => q`SELECT extract(isoyear FROM date)::int AS y, extract(week FROM date)::int AS w,
+                      avg(modal_price)::float8 AS p
+               FROM prices_clean
+               WHERE commodity = ${c} AND market = ${m} AND variety = ${v}
+                 AND date >= make_date(extract(year FROM now())::int - 6, 1, 1)
+               GROUP BY 1, 2 ORDER BY 1, 2`,
+    ),
+    rows<Percentile>(
+      (q) => q`WITH l AS (
+                 SELECT date, modal_price FROM prices_clean
+                 WHERE commodity = ${c} AND market = ${m} AND variety = ${v}
+                 ORDER BY date DESC LIMIT 1)
+               SELECT (count(*) FILTER (WHERE x.modal_price < l.modal_price))::float8
+                        / NULLIF(count(*), 0) AS share,
+                      min(extract(year FROM x.date))::int AS since,
+                      extract(month FROM l.date)::int AS month
+               FROM l JOIN prices_clean x
+                 ON x.commodity = ${c} AND x.market = ${m} AND x.variety = ${v}
+                AND extract(month FROM x.date) = extract(month FROM l.date)
+                AND x.date < date_trunc('month', l.date)
+               GROUP BY l.date`,
+    ),
+    rows<ForecastRow>(
+      (q) => q`SELECT horizon, to_char(forecast_date, 'YYYY-MM-DD') AS as_of,
+                      to_char(target_date, 'YYYY-MM-DD') AS target,
+                      p10::float8 AS p10, p50::float8 AS p50, p90::float8 AS p90,
+                      last_value::float8 AS last_value, model_name, model_version
+               FROM forecasts
+               WHERE commodity = ${c} AND market = ${m} AND variety = ${v}
+                 AND forecast_date = (SELECT max(forecast_date) FROM forecasts
+                                      WHERE commodity = ${c} AND market = ${m})
+               ORDER BY horizon`,
+    ),
+  ]);
+  return {
+    daily,
+    weekly,
+    seasonal,
+    percentile: pct[0] ?? { share: null, since: null, month: null },
+    forecasts,
+  };
+}

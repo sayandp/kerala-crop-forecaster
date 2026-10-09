@@ -1,4 +1,3 @@
-import { Footer, Nav } from "@/components/Nav";
 import { Empty, Page, Table } from "@/components/ui";
 import { DAGSHUB } from "@/lib/format";
 import { dict } from "@/lib/i18n";
@@ -21,7 +20,6 @@ export default async function Models({ params }: LangParams) {
 
   return (
     <>
-      <Nav lang={lang} path="/models" />
       <Page title={t.title} intro={t.intro}>
         {log.length === 0 ? (
           <Empty text={dict(lang).common.noData} />
@@ -43,7 +41,6 @@ export default async function Models({ params }: LangParams) {
           {t.registry}
         </a>
       </Page>
-      <Footer lang={lang} />
     </>
   );
 }

@@ -212,7 +212,23 @@ class Bot:
     # --- commands ----------------------------------------------------------------------------
 
     def cmd_start(self, chat_id: int, lang: str, args: list[str]) -> None:
-        self.send(chat_id, t(lang, "start"), LANG_KEYBOARD)
+        # Deep links from the website: t.me/<bot>?start=alert_banana_kayamkulam / price_banana
+        deep = names.parse_start_payload(args[0]) if args else None
+        if deep is None:
+            self.send(chat_id, t(lang, "start"), LANG_KEYBOARD)
+            return
+        kind, crop, served_ = deep
+        assert crop is not None
+        if kind == "price":
+            self._price(chat_id, lang, crop, served_)
+        elif served_ is not None:
+            self._threshold_menu(chat_id, lang, served_)
+        else:
+            self.send(
+                chat_id,
+                t(lang, "pick_market", crop=crop_name(crop, lang)),
+                market_keyboard(lang, crop, "am"),
+            )
 
     def cmd_help(self, chat_id: int, lang: str, args: list[str]) -> None:
         self.send(chat_id, t(lang, "help"))

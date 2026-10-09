@@ -19,7 +19,8 @@ GitHub Actions cron (daily 19:47 IST) → ingest → validate → features → t
 - MLflow (tracking + model registry, hosted on DagsHub)
 - Postgres (Neon/Supabase in prod, docker-compose locally), SQLAlchemy 2.x + psycopg
 - FastAPI + Uvicorn + slowapi (read-only API on Render); python-telegram-bot later (webhook inside FastAPI)
-- Dashboard: Next.js (App Router, TypeScript strict, Tailwind, Recharts) in `web/`, pnpm, on Vercel
+- Dashboard: Next.js (App Router, TypeScript strict, Tailwind, Recharts) in `web/`, pnpm, on Vercel; PWA;
+  Playwright + @axe-core/playwright (dev only) for smoke / accessibility tests
 - Evidently (drift reports)
 - GitHub Actions (CI, daily pipeline, deploy); Prefect-compatible task/flow structure
 - Docker, ruff, mypy, pytest
@@ -286,6 +287,43 @@ Built (Phase 4, `api/main.py`; reads tables only — never loads MLflow models):
 - Don't scrape sites aggressively; respect rate limits, cache responses in `data/cache/`.
 - Don't touch `data/raw/` files after ingest — they're immutable.
 
+## Dashboard design system (Phase 6a, `web/`)
+
+- **Farmer-first:** home = crop cards (lead-market price, ▲/▼ vs 7 days, server-SVG sparkline, best market
+  today); `/crop/<crop>[/<market>]` = price history (90d/1y/5y + forecast band), "is this price high?"
+  (this year / last year / 5-yr weekly mean + month percentile), sortable market table, district map,
+  Telegram alert deep link (`?start=alert_<crop>_<market-slug>`, handled in `bot/names.py`), WhatsApp
+  share, per-crop OG card. Nav: Home · Crops · Alerts · How it works (evidence pages live under it).
+  Old `/p/<crop>/<market>` URLs redirect.
+- **Liquid-Glass-inspired, original** (no Apple fonts, symbols, logos). Tokens in `app/globals.css`
+  (`@theme`): glass levels thin/regular/thick, radii, motion; light and dark designed separately.
+  Components: `components/glass.tsx` (GlassCard, DataCard, Chip, PriceBadge, TrendPill), `Chrome`
+  (nav + tab bar), `Sheet` (`<dialog>`), `MiniSpark`/`Sparkline` (server SVG), `KeralaMap`, `MarketTable`,
+  `HistoryPanel`, `Charts` (Recharts).
+- **Glass guardrails (mandatory):** `backdrop-filter` only on chrome (top bar, tab bar, open sheet: ≤ 3
+  layers); cards use non-blurred `surface-glass`; numbers / charts / tables on near-opaque `surface-data`;
+  fallbacks for `@supports not (backdrop-filter)`, `prefers-reduced-transparency`, `prefers-contrast: more`,
+  `prefers-reduced-motion`. Chrome over scrolling content uses the thick level (scrim) so text stays ≥ 4.5:1.
+- **Performance:** no Recharts before the first user interaction (server SVG stand-ins show the data);
+  one font preload (Noto Sans Malayalam, Malayalam subset; Latin = system UI font); no link prefetch on
+  long lists. Budget: Lighthouse mobile ≥ 90, accessibility 100, CLS 0 (`npm run test:e2e` + 3 Lighthouse
+  runs, median).
+- **Charts** follow the dataviz method: slots blue / orange / aqua (validated all-pairs, light + dark),
+  sequential blue for the map, legend + direct labels, table view for the seasonal chart.
+- **OG images with Malayalam:** Satori cannot shape Indic scripts, so fixed Malayalam phrases are
+  pre-shaped offline with HarfBuzz (Noto Sans Malayalam Bold, OFL) into SVG paths (`lib/og-glyphs.ts`);
+  add a phrase by re-running the generator, never by typing Malayalam into `ImageResponse`.
+- **Map:** `lib/kerala-map.ts`, generated once from geoBoundaries IND ADM2 (ODbL 1.0, attribution under the
+  map); market → district from `prices_raw`.
+- **Env (Vercel, Production + Preview) is exactly:** `DATABASE_URL_RO`, `REVALIDATE_SECRET`,
+  `NEXT_PUBLIC_TELEGRAM_CHANNEL_URL`. Never add pipeline / bot / MLflow secrets to Vercel. Platform-provided:
+  `VERCEL_PROJECT_PRODUCTION_URL`, `NODE_ENV`. Test-only: `BASE_URL`, `PW_CHANNEL`, `SHOTS_DIR`,
+  `VERCEL_AUTOMATION_BYPASS_SECRET` (local `.env`; Playwright / Lighthouse send it as
+  `x-vercel-protection-bypass` to reach protected previews). Preview Lighthouse runs block the Vercel
+  toolbar (`--blocked-url-patterns=*vercel.live*`): it is injected on previews only.
+- **PWA:** `app/manifest.ts`, `public/icons/*`, `public/sw.js` (network-first pages with cache fallback, then
+  `/offline`; cache-first hashed static assets), install prompt (Android) / hint (iOS).
+
 ## Free-tier constraints
 
 The project must cost **₹0** to run. Every design choice has to fit these free tiers:
@@ -347,5 +385,7 @@ Rules:
 - [ ] 5. Telegram bot (Stage 2): built 2026-10-09 (webhook, commands ml/en, crossing alerts, digests, roles,
       metrics, tests); tick once it answers on Render and a daily run has fired a real alert
 - [ ] 6. CI/CD polish, README (diagram, live MAPE badge), user acquisition
+  - [ ] 6a. Frontend upgrade (farmer-first, Liquid-Glass-inspired, PWA): built on branch
+        `feat/frontend-liquid-glass`; merge after the Lighthouse check on the Vercel preview
 
 Update this checklist as phases complete.

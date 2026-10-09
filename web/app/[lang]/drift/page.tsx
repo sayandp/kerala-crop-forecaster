@@ -1,5 +1,4 @@
 import { TrendChart } from "@/components/LazyCharts";
-import { Footer, Nav } from "@/components/Nav";
 import { Card, Empty, Page, Section } from "@/components/ui";
 import { dict } from "@/lib/i18n";
 import { langStaticParams, pageMetadata, resolveLang, type LangParams } from "@/lib/page";
@@ -25,7 +24,6 @@ export default async function Drift({ params }: LangParams) {
 
   return (
     <>
-      <Nav lang={lang} path="/drift" />
       <Page title={t.title} intro={t.intro}>
         {!last ? (
           <Empty text={t.none} />
@@ -85,7 +83,6 @@ export default async function Drift({ params }: LangParams) {
           </>
         )}
       </Page>
-      <Footer lang={lang} />
     </>
   );
 }

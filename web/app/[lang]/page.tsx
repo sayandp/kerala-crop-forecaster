@@ -1,11 +1,11 @@
-import Link from "next/link";
-import { Footer, Nav } from "@/components/Nav";
-import { SeriesDetail, cropName, seriesPath } from "@/components/SeriesDetail";
-import { Page, Section, Table } from "@/components/ui";
-import { STALE_DAYS, daysBetween, rupees } from "@/lib/format";
-import { dict, href } from "@/lib/i18n";
+import { CropCard } from "@/components/CropCard";
+import { LargeTitle } from "@/components/glass";
+import { InstallPrompt } from "@/components/InstallPrompt";
+import { REF_MARKET } from "@/lib/crops";
+import { dict } from "@/lib/i18n";
 import { langStaticParams, pageMetadata, resolveLang, type LangParams } from "@/lib/page";
-import { overview, seriesView } from "@/lib/queries";
+import { latestAll, sparklines } from "@/lib/queries";
+import { cropCards } from "@/lib/view";
 
 export const revalidate = 3600;
 export const generateStaticParams = langStaticParams;
@@ -13,51 +13,26 @@ export const generateStaticParams = langStaticParams;
 export async function generateMetadata({ params }: LangParams) {
   const lang = await resolveLang(params);
   const t = dict(lang);
-  return pageMetadata(lang, "/", t.site.title, t.site.tagline);
+  return pageMetadata(lang, "/", t.home.title, t.site.tagline);
 }
 
 export default async function Home({ params }: LangParams) {
   const lang = await resolveLang(params);
   const t = dict(lang);
-  const all = await overview();
-  // Default series: the freshest one (ties: first alphabetically).
-  const fresh = all.filter((o) => o.last_observed && daysBetween(o.last_observed, o.as_of) <= STALE_DAYS);
-  const pick = fresh[0] ?? all[0];
-  const view = pick ? await seriesView(pick.commodity, pick.market) : null;
+  const latest = await latestAll();
+  const refs = latest.filter((r) => REF_MARKET[r.commodity as keyof typeof REF_MARKET] === r.market);
+  const cards = cropCards(latest, await sparklines(refs));
 
   return (
-    <>
-      <Nav lang={lang} path="/" />
-      <Page title={t.site.title} intro={t.site.tagline}>
-        <SeriesDetail lang={lang} view={view} all={all} />
-        {all.length > 0 && (
-          <Section title={t.prices.range7}>
-            <Table
-              head={[t.prices.pick, t.prices.latest, t.prices.range7]}
-              rows={all.map((o) => {
-                const stale = !o.last_observed || daysBetween(o.last_observed, o.as_of) > STALE_DAYS;
-                return [
-                  <Link
-                    key="l"
-                    className="underline"
-                    href={href(lang, seriesPath(o.commodity, o.market))}
-                    prefetch={false}
-                  >
-                    {cropName(lang, o.commodity)} · {o.market}
-                  </Link>,
-                  <span key="p" className={stale ? "text-muted" : ""}>
-                    {o.last_value !== null ? rupees(o.last_value) : "–"}
-                    {stale ? " *" : ""}
-                  </span>,
-                  `${rupees(o.p10)}–${rupees(o.p90).slice(1)}`,
-                ];
-              })}
-            />
-            <p className="mt-2 text-xs text-muted">* {t.prices.stale}</p>
-          </Section>
-        )}
-      </Page>
-      <Footer lang={lang} />
-    </>
+    <main id="main" className="mx-auto max-w-5xl px-4 pt-6">
+      <LargeTitle title={t.home.title} lead={t.home.lead} />
+      <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        {cards.map((c) => (
+          <CropCard key={c.crop} lang={lang} c={c} />
+        ))}
+      </ul>
+      <p className="mt-6 max-w-2xl text-[13px] text-ink-2">{t.crop.rangeNote}</p>
+      <InstallPrompt label={t.home.install} iosHint={t.home.installIos} close={t.crop.close} />
+    </main>
   );
 }

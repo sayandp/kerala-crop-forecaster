@@ -141,6 +141,23 @@ def split_crop(args: list[str]) -> tuple[str | None, list[str]]:
     return None, args
 
 
+def market_slug(market: str) -> str:
+    """Deep-link slug, same rule as web/lib/crops.ts: "Chenkal VFPCK" -> "chenkal-vfpck"."""
+    return re.sub(r"[^a-z0-9]+", "-", market.lower()).strip("-")
+
+
+def parse_start_payload(payload: str) -> tuple[str, str | None, Served | None] | None:
+    """`/start alert_<crop>[_<market-slug>]` or `price_<crop>` (website buttons) -> parts."""
+    parts = payload.split("_", 2)
+    if len(parts) < 2 or parts[0] not in ("alert", "price") or parts[1] not in CROPS:
+        return None
+    crop = parts[1]
+    market = None
+    if len(parts) == 3:
+        market = next((s for s in markets_of(crop) if market_slug(s.market) == parts[2]), None)
+    return parts[0], crop, market
+
+
 _NUMBER = re.compile(r"(\d+(?:[.,]\d+)?)")
 
 
